@@ -16,17 +16,17 @@ ready for RAG ingestion or full-text search.
 ## Architecture
 ```mermaid
 graph TD
-    A[🗂️ PDF Manuale] --> B[n8n - Orchestrazione]
+    A[PDF Manuale] --> B[n8n - Orchestrazione]
     B --> C[DocParser - Flask Microservice]
-    C --> D[/recognize - Scansionato o nativo?]
-    D -->|Nativo| E[/setup - Crea struttura progetto]
+    C --> D[recognize - Scansionato o nativo]
+    D -->|Nativo| E[setup - Crea struttura progetto]
     D -->|Scansionato| E
-    E --> F[/split - Divide in pagine singole]
-    F --> G[/parse - Unstructured hi-res + YOLOX]
-    F --> H[/ocr - Tesseract fallback]
-    G --> I[/extract_images - Estrae immagini]
-    G --> J[/crop/extract - Ritaglia regioni]
-    H --> K[🗃️ Markdown + JSON strutturato]
+    E --> F[split - Divide in pagine singole]
+    F --> G[parse - Unstructured hi-res + YOLOX]
+    F --> H[ocr - Tesseract fallback]
+    G --> I[extract_images - Estrae immagini]
+    G --> J[crop - Ritaglia regioni]
+    H --> K[Markdown + JSON strutturato]
     I --> K
     J --> K
     K --> L[LiteLLM + Ollama - RAG ingestion]
