@@ -1,9 +1,8 @@
 from flask import Blueprint, request, jsonify
 import os
 import logging
-# Importiamo la funzione e l'utilità per convertire in dizionario
+# Importiamo la funzione e l'utilitÃ  per convertire in dizionario
 from unstructured.partition.pdf import partition_pdf
-
 parse_bp = Blueprint('parse', __name__)
 
 @parse_bp.route('/parse_from_path', methods=['POST'])
@@ -12,14 +11,14 @@ def parse_from_path():
     try:
         data = request.get_json()
         pdf_path = data.get('pdfPath')
-        page_num = data.get('page', 1) # Recuperiamo il numero pagina se inviato
+        page_num = data.get('page', 1)  # Recuperiamo il numero pagina se inviato
 
         if not pdf_path or not os.path.exists(pdf_path):
             logging.error(f"File non trovato: {pdf_path}")
             return jsonify({'error': f'File non trovato: {pdf_path}'}), 404
 
         # Esecuzione del parsing HI_RES
-        # Questa operazione è CPU intensive e richiede i modelli di computer vision
+        # Questa operazione Ã¨ CPU intensive e richiede i modelli di computer vision
         elements = partition_pdf(
             filename=pdf_path,
             strategy="hi_res",                # Necessario per identificare Figure e Tabelle
@@ -29,30 +28,50 @@ def parse_from_path():
             hi_res_model_name="yolox"          # Modello molto accurato per il layout
         )
 
+        # Check pagina full-image: nessun elemento testuale trovato
+        if not elements:
+            logging.info(f"Pagina {page_num} Ã¨ full-image, nessun elemento testuale trovato")
+            return jsonify({
+                'status': 'full_image',
+                'page': page_num,
+                'markdown': f'[IMMAGINE - pagina {page_num}]',
+                'elements': [],
+                'method': 'local_venv_unstructured_hi_res',
+                'metadata': {
+                    'strategy': 'hi_res',
+                    'element_count': 0
+                }
+            })
+
         # 1. Prepariamo la lista degli elementi con metadati e coordinate
+        # Gestiamo ogni elemento in modo robusto per evitare crash su None
         elements_dicts = []
         for el in elements:
-            el_dict = el.to_dict()
-            
-            # Pulizia: Unstructured a volte restituisce coordinate complesse.
-            # Ci assicuriamo che n8n riceva i punti o il bounding box.
-            if 'metadata' in el_dict and 'coordinates' in el_dict['metadata']:
-                # Manteniamo le coordinate per il ritaglio nel "Ramo A"
-                el_dict['boundingBox'] = el_dict['metadata']['coordinates']
-            
-            elements_dicts.append(el_dict)
+            try:
+                el_dict = el.to_dict()
+                # Pulizia: Unstructured a volte restituisce coordinate complesse.
+                # Ci assicuriamo che n8n riceva i punti o il bounding box.
+                if 'metadata' in el_dict and 'coordinates' in el_dict['metadata']:
+                    # Manteniamo le coordinate per il ritaglio nel "Ramo A"
+                    el_dict['boundingBox'] = el_dict['metadata']['coordinates']
+                elements_dicts.append(el_dict)
+            except Exception as el_err:
+                logging.warning(f"Elemento saltato per errore: {el_err}")
+                continue
 
         # 2. Creiamo il contenuto Markdown unificato (quello che va alla Pulizia)
-        # Usiamo il metodo degli elementi stessi per mantenere la formattazione
-        markdown_content = "\n\n".join([str(el) for el in elements])
+        # Usiamo el.text direttamente per evitare __str__ su elementi con None
+        markdown_content = "\n\n".join([
+            el.text if hasattr(el, 'text') and el.text is not None else ""
+            for el in elements
+        ])
 
         logging.info(f"Parsing completato con successo per la pagina {page_num}")
-
         return jsonify({
             'status': 'success',
             'page': page_num,
             'markdown': markdown_content,
-            'elements': elements_dicts,       # Lista completa per il nodo "verifica-immagini"
+            'elements': elements_dicts,        # Lista completa per il nodo "verifica-immagini"
             'method': 'local_venv_unstructured_hi_res',
             'metadata': {
                 'strategy': 'hi_res',
