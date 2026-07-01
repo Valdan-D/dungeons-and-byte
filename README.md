@@ -98,7 +98,7 @@ Solutions accumulate across runs — once added, they apply to all future projec
 | `/render_page` | POST | Render scanned page as PNG |
 | `/crop` | POST | Crop image regions by bounding box |
 | `/split_markdown` | POST | Split markdown into chunks for RAG |
-| `/correct_markdown` | POST | LLM-based markdown correction (legacy) |
+| `/correct_markdown` | POST | LLM-based markdown correction (legacy, requires LiteLLM) |
 | `/dots_mocr` | POST | dots.mocr OCR via subprocess |
 
 ## n8n workflow
@@ -106,10 +106,22 @@ Solutions accumulate across runs — once added, they apply to all future projec
 The orchestration workflow is exported at `n8n/Dungeons_and_Byte.workflow.json`.
 Import it directly into n8n via Settings → Import Workflow.
 
-**Requirements:**
-- DocParser at `http://192.168.178.90:5000`
-- Ollama at `http://192.168.178.115:11434` with `qwen2.5:3b` pulled
-- Shared folder mounted at `/shared/projects/` in the n8n container
+**After import, update these placeholders in the node HTTP request URLs:**
+
+| Placeholder | Description |
+|---|---|
+| `DOCPARSER_HOST` | IP or hostname of the DocParser container (port 5000) |
+| `OLLAMA_HOST` | IP or hostname of the Ollama container (port 11434) |
+
+## Environment variables (DocParser)
+
+| Variable | Default | Description |
+|---|---|---|
+| `DOCPARSER_BASE_PATH` | `/shared/projects` | Base path for project folders |
+| `LITELLM_URL` | `http://localhost:4000/v1/chat/completions` | LiteLLM endpoint (correct_markdown) |
+| `LITELLM_API_KEY` | *(required)* | API key for LiteLLM |
+| `DOTS_MOCR_PYTHON` | `/opt/docparser/bin/python` | Python binary for dots.mocr |
+| `DOTS_MOCR_SCRIPT` | `/opt/dots.ocr/run_inference.py` | Inference script path |
 
 ## Status
 
@@ -118,4 +130,3 @@ Import it directly into n8n via Settings → Import Workflow.
 ## Notes
 
 Deployed on LXC containers (Proxmox). GPU: NVIDIA T1000 8GB.
-Base paths configurable via environment variable `DOCPARSER_BASE_PATH`.
