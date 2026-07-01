@@ -1,8 +1,7 @@
 # 🐉 Dungeons & Byte
 
 A self-hosted pipeline to digitize and index tabletop RPG manuals.
-Transforms PDF documents into structured Markdown and JSON,
-ready for RAG ingestion or full-text search.
+Transforms PDF documents into structured Markdown, ready for RAG ingestion or full-text search.
 
 ## What it does
 
@@ -11,29 +10,106 @@ ready for RAG ingestion or full-text search.
 - Extracts text using Unstructured.io (hi-res, YOLOX layout model)
 - Falls back to Tesseract OCR for scanned pages
 - Extracts and crops images with coordinate mapping
+- Cleans OCR output with regex pre-processing + LLM post-processing (qwen2.5:3b via Ollama)
+- Detects and logs OCR anomalies (table garbage, wrong language) to a QA file
+- Applies manual corrections from `qa/solutions.json` before final assembly
 - Creates a structured project folder for each manual
 
 ## Architecture
+
 ```mermaid
 graph TD
     A[PDF Manuale] --> B[n8n - Orchestrazione]
     B --> C[DocParser - Flask Microservice]
     C --> D[recognize - Scansionato o nativo]
-    D -->|Nativo| E[setup - Crea struttura progetto]
-    D -->|Scansionato| E
+    D --> E[setup - Crea struttura progetto]
     E --> F[split - Divide in pagine singole]
     F --> G[parse - Unstructured hi-res + YOLOX]
     F --> H[ocr - Tesseract fallback]
     G --> I[extract_images - Estrae immagini]
-    G --> J[crop - Ritaglia regioni]
-    H --> K[Markdown + JSON strutturato]
-    I --> K
-    J --> K
-    K --> L[LiteLLM + Ollama - RAG ingestion]
+    G --> J[pulizia-markdown - Regex pre-cleaning]
+    H --> J
+    J --> K[pulizia-llm-ollama - qwen2.5:3b cleanup]
+    K --> L[verifica-pagina - QA anomaly detection]
+    L --> M[salva-pagine-markdown]
+    M --> N[controllo-errori - Apply solutions or STOP]
+    N --> O[filtro-e-assemblaggio-md]
+    O --> P[Markdown + capitoli strutturati]
 ```
+
 ## Stack
 
-Python · Flask · PyMuPDF · Unstructured.io · Tesseract · n8n · LiteLLM · Ollama
+Python · Flask · PyMuPDF · Unstructured.io · Tesseract · n8n · Ollama (qwen2.5:3b)
+
+## Project folder structure
+
+```
+/shared/projects/
+├── pool/                        # PDF sources (input queue)
+├── qa/
+│   ├── solutions.json           # Global corrections applied cross-project
+│   └── errors/
+│       └── <project-name>.json  # Per-run anomaly log
+└── <Project Title>/
+    ├── images/                  # Extracted images
+    ├── json/                    # Intermediate JSON from docparser
+    ├── markdown/                # Per-page cleaned markdown (page_N.md)
+    ├── pages/                   # Single-page PDFs
+    └── <Project Title>.md       # Final assembled markdown
+```
+
+## QA / Correction workflow
+
+After each run, `qa/errors/<project>.json` contains detected anomalies:
+
+```json
+[
+  {
+    "page": 50,
+    "type": "table_garbage",
+    "context": "Blocca persone | Ammaliamento",
+    "column_index": 2,
+    "found": "O00rP00ì0)ìz£0 010"
+  }
+]
+```
+
+To fix: add entries to `qa/solutions.json` and re-run the workflow.
+The `controllo-errori` node applies corrections before assembly:
+
+```json
+[
+  { "wrong": "O00rP00ì0)ìz£0 010", "correct": "C" }
+]
+```
+
+Solutions accumulate across runs — once added, they apply to all future projects automatically.
+
+## DocParser endpoints
+
+| Endpoint | Method | Description |
+|---|---|---|
+| `/parse_from_path` | POST | Unstructured hi-res PDF parsing (YOLOX) |
+| `/ocr_from_path` | POST | Tesseract OCR fallback |
+| `/split` | POST | Split PDF into single pages |
+| `/setup` | POST | Create project folder structure |
+| `/recognize` | POST | Detect if PDF is native or scanned |
+| `/extract_images_from_path` | POST | Extract embedded images |
+| `/render_page` | POST | Render scanned page as PNG |
+| `/crop` | POST | Crop image regions by bounding box |
+| `/split_markdown` | POST | Split markdown into chunks for RAG |
+| `/correct_markdown` | POST | LLM-based markdown correction (legacy) |
+| `/dots_mocr` | POST | dots.mocr OCR via subprocess |
+
+## n8n workflow
+
+The orchestration workflow is exported at `n8n/Dungeons_and_Byte.workflow.json`.
+Import it directly into n8n via Settings → Import Workflow.
+
+**Requirements:**
+- DocParser at `http://192.168.178.90:5000`
+- Ollama at `http://192.168.178.115:11434` with `qwen2.5:3b` pulled
+- Shared folder mounted at `/shared/projects/` in the n8n container
 
 ## Status
 
@@ -41,5 +117,5 @@ Python · Flask · PyMuPDF · Unstructured.io · Tesseract · n8n · LiteLLM · 
 
 ## Notes
 
-Deployed on LXC container (Proxmox). Base paths configurable
-via environment variable `DOCPARSER_BASE_PATH`.
+Deployed on LXC containers (Proxmox). GPU: NVIDIA T1000 8GB.
+Base paths configurable via environment variable `DOCPARSER_BASE_PATH`.
