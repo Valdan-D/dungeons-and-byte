@@ -1,0 +1,729 @@
+{
+  "name": "Dungeons_and_Byte-V_1.0-beta",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -672,
+        -7072
+      ],
+      "id": "010f2ab1-2257-4abf-9522-a53bb79a078a",
+      "name": "trigger manuale"
+    },
+    {
+      "parameters": {
+        "jsCode": "const fileName = $input.first().json.fileName;\nconst projectName = fileName.replace(/\\.[^.]+$/, '').trim();\nconst pdfPath = `/shared/projects/pool/${fileName}`;\n \nreturn [{\n  json: {\n    projectName: projectName,\n    pdfPath: pdfPath\n  },\n  binary: $input.first().binary\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -224,
+        -7072
+      ],
+      "id": "44fe3338-b45f-48b3-b794-c6ebb2979476",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://192.168.178.90:5000/setup",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"projectName\": \"{{ $json.projectName }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        0,
+        -7072
+      ],
+      "id": "a190fc9a-4577-480e-b139-1bfb853b28a5",
+      "name": "crea-cartelle"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        896,
+        -7072
+      ],
+      "id": "5b5de70e-b55b-4c5b-b118-1e325f669ad5",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "pages",
+        "include": "allOtherFields",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        672,
+        -7072
+      ],
+      "id": "847db67b-8ac9-4a02-be66-b20827f7d9bb",
+      "name": "Split Out"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://192.168.178.90:5000/parse_from_path",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "pdfPath",
+              "value": "={{ $json.pagePath }}"
+            },
+            {
+              "name": "projectName",
+              "value": "={{ $('Split Out').item.json.projectName }}"
+            },
+            {
+              "name": "page",
+              "value": "={{ $('Split Out').item.json.pages.page }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1344,
+        -7072
+      ],
+      "id": "a27a3997-51dc-45f9-8072-22ef7cdd9d4b",
+      "name": "render_page"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://192.168.178.90:5000/split",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "projectName",
+              "value": "={{ $('crea-cartelle').item.json.projectName }}"
+            },
+            {
+              "name": "pdfPath",
+              "value": "={{ $('Code in JavaScript1').item.json.pdfPath }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        448,
+        -7072
+      ],
+      "id": "2bb22bb5-427d-4715-a135-3a78049ce5ad",
+      "name": "Splittta"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. Recupero dati dai nodi precedenti\nconst elements = $json.elements || [];\nconst page = $json.page || 0;\nconst projectName = $json.projectName || \"Progetto\";\n\n// 2. Dimensioni di riferimento (Layout Unstructured)\nconst L_WIDTH = 2885;\nconst L_HEIGHT = 3754;\nconst TOTAL_AREA = L_WIDTH * L_HEIGHT;\n\nlet images = [];\nlet totalImagesArea = 0;\n\n// 3. Estrazione e calcolo area delle immagini\nconst rawImages = elements\n  .filter(el => el.type === \"Figure\" || el.type === \"Image\")\n  .map(el => {\n    const coords = el.boundingBox || el.metadata?.coordinates || el.coordinates;\n    const points = coords?.points;\n    \n    if (!points || points.length < 4) return null;\n\n    const xs = points.map(p => p[0]);\n    const ys = points.map(p => p[1]);\n    \n    const xMin = Math.min(...xs);\n    const yMin = Math.min(...ys);\n    const width = Math.max(...xs) - xMin;\n    const height = Math.max(...ys) - yMin;\n    \n    totalImagesArea += (width * height);\n    \n    return {\n      left: xMin,\n      top: yMin,\n      width: width,\n      height: height,\n      layout_width: coords.layout_width || L_WIDTH,\n      layout_height: coords.layout_height || L_HEIGHT\n    };\n  })\n  .filter(i => i !== null);\n\n// 4. Calcolo percentuale di copertura\nconst coveragePercent = (totalImagesArea / TOTAL_AREA) * 100;\n\n// 5. Decisione Strategia: Full Page vs Ritagli Singoli\nconst isFullPage = (page === 1 || coveragePercent > 80);\n\nif (isFullPage) {\n  // Caso Copertina o Mappa Gigante\n  images.push({\n    page: page,\n    projectName: projectName,\n    index: 1,\n    type: \"FullPage\",\n    fileName: `img_pag_${page}_full.png`,\n    crop: {\n      left: 0,\n      top: 0,\n      width: L_WIDTH,\n      height: L_HEIGHT,\n      layout_width: L_WIDTH,\n      layout_height: L_HEIGHT\n    }\n  });\n} else {\n  // Caso immagini multiple nella pagina\n  images = rawImages.map((img, idx) => ({\n    page: page,\n    projectName: projectName,\n    index: idx + 1,\n    type: \"Image\",\n    fileName: `img_pag_${page}_${idx + 1}.png`,\n    crop: img\n  }));\n}\n\n// 6. Preparazione Testo per Groq (con segnaposti)\nlet markdownConSegnaposti = $json.markdown || \"\";\n\n// Aggiungiamo i riferimenti alle immagini in fondo al testo affinché Groq li veda\nif (images.length > 0) {\n  const imageRefs = images.map(i => `[SEGNAPOSTO_IMMAGINE: ${i.fileName}]`).join(\"\\n\");\n  markdownConSegnaposti += `\\n\\n--- RIFERIMENTI IMMAGINI ---\\n${imageRefs}`;\n}\n\n// 7. Output Finale\nreturn {\n  projectName,\n  page,\n  pageType: isFullPage ? \"full_image\" : \"standard\",\n  coverage: coveragePercent.toFixed(2) + \"%\",\n  markdown: markdownConSegnaposti,\n  images: images, // Questo array andrà nello Split Out\n  hasImages: images.length > 0\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1792,
+        -6976
+      ],
+      "id": "ed40da81-fa64-454f-b01c-3afa1bdbc50f",
+      "name": "verifica-immagini"
+    },
+    {
+      "parameters": {
+        "fileSelector": "/shared/projects/pool/La rocca Delle Terre Di Confine - Livello Base - 1982 - dnd.pdf",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1.1,
+      "position": [
+        -448,
+        -7072
+      ],
+      "id": "e2ff903d-dfe1-464b-9481-56115ac808ef",
+      "name": "Read/Write Files from Disk1"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. Recupera gli elementi che arrivano da Unstructured\nconst items = $input.all();\n\n// 2. Recupera i metadati dal nodo che precede TUTTO (es. il loop)\n// Sostituisci 'Loop Over Items' con il nome esatto del tuo nodo iniziale\nconst projectData = $('Loop Over Items').item.json; \n\nconst projectName = projectData.projectName || \"Progetto_Default\";\nconst page = projectData.pages?.page || \"0\";\nconst pagePath = projectData.pages?.path || \"\";\n\n// 3. Crea il contenuto arricchito con l'HTML delle tabelle\nconst enrichedContent = items.map(item => {\n  const el = item.json;\n  \n  // Se Unstructured ha trovato una tabella, usa l'HTML\n  if (el.type === \"Table\" && el.metadata?.text_as_html) {\n    return `\\n### TABELLA RILEVATA (STRUTTURA HTML) ###\\n${el.metadata.text_as_html}\\n`;\n  }\n  \n  return el.text || \"\";\n}).join('\\n');\n\n// 4. Ritorna l'oggetto pronto per i nodi successivi\nreturn {\n  markdown: enrichedContent,\n  page: page,\n  projectName: projectName,\n  pagePath: pagePath\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        -7072
+      ],
+      "id": "31a31f6f-0739-4ba2-9b8c-93ba6be09af1",
+      "name": "promt_per_render"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "images",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        2016,
+        -6976
+      ],
+      "id": "90e1ee02-450b-40fe-ad77-ac441d030575",
+      "name": "splitta-immagini"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://192.168.178.90:5000/crop/extract",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "pdfPath",
+              "value": "={{ $('Loop Over Items').item.json.pages.path }}"
+            },
+            {
+              "name": "page",
+              "value": "1"
+            },
+            {
+              "name": "left",
+              "value": "={{ $json.crop.left }}"
+            },
+            {
+              "name": "top",
+              "value": "={{ $json.crop.top }}"
+            },
+            {
+              "name": "width",
+              "value": "={{ $json.crop.width }}"
+            },
+            {
+              "name": "height",
+              "value": "={{ $json.crop.height }}"
+            },
+            {
+              "name": "fileName",
+              "value": "={{ $json.fileName }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2240,
+        -6976
+      ],
+      "id": "0f2efcab-d982-4ebc-a226-65dd0222f80b",
+      "name": "estrae-immagini"
+    },
+    {
+      "parameters": {
+        "operation": "write",
+        "fileName": "=/shared/projects/{{ $('promt_per_render').item.json.projectName }}/images/{{ $json.fileName }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1.1,
+      "position": [
+        2464,
+        -6976
+      ],
+      "id": "b38d0400-e7b3-407f-bf7e-3eccbbc931c3",
+      "name": "salva-immagini",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "write",
+        "fileName": "=/shared/projects/{{ $('Loop Over Items').item.json.projectName }}/markdown/page_{{ $('Loop Over Items').item.json.pages.page }}.md",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1.1,
+      "position": [
+        2464,
+        -7168
+      ],
+      "id": "ab25ca83-0aa6-49d9-a608-5b3e9fd76e2c",
+      "name": "salva-pagine-markdown"
+    },
+    {
+      "parameters": {
+        "operation": "toText",
+        "sourceProperty": "markdown",
+        "options": {
+          "fileName": "=page_{{ $('Loop Over Items').item.json.pages.page }}.md"
+        }
+      },
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        2240,
+        -7168
+      ],
+      "id": "efe4275d-72be-41d6-a556-9a61fe111561",
+      "name": "pagine-da-binario-a-markdown"
+    },
+    {
+      "parameters": {
+        "jsCode": "const mdFiles = $input.all();\nconst projectName = $('Split Out').first().json.projectName;\n\nconst fs = require('fs');\nconst projectBase = `/shared/projects/${projectName}`;\nfs.mkdirSync(projectBase, { recursive: true });\nfs.mkdirSync(`${projectBase}/capitoli`, { recursive: true });\n\n// Legge la cartella images/ dal filesystem e costruisce mappa pageNum → [filenames]\nconst imagesDir = `${projectBase}/images`;\nconst imagesByPage = {};\ntry {\n  const imgFiles = fs.readdirSync(imagesDir);\n  for (const f of imgFiles) {\n    const m = f.match(/^img_pag_(\\d+)_/);\n    if (m) {\n      const p = parseInt(m[1], 10);\n      if (!imagesByPage[p]) imagesByPage[p] = [];\n      imagesByPage[p].push(f);\n    }\n  }\n} catch (e) {\n  // cartella images assente o vuota, nessun problema\n}\n\nconst results = [];\n\nfor (let i = 0; i < mdFiles.length; i++) {\n  const md = mdFiles[i];\n\n  const fileName = md.json.fileName || md.json.filePath || \"\";\n  const match = fileName.match(/(?:page|pag)_?(\\d+)/i);\n  const pageNum = match ? parseInt(match[1], 10) : 0;\n\n  const images = imagesByPage[pageNum] || [];\n  const imageBlock = images.length > 0\n    ? images.map(f => `![Immagine](./images/${f})`).join('\\n\\n') + '\\n\\n'\n    : '';\n\n  let text = \"\";\n  try {\n    const binaryBuffer = await this.helpers.getBinaryDataBuffer(i, 'data');\n    text = binaryBuffer.toString('utf8');\n  } catch (error) {\n    text = md.json.markdown || md.json.content || md.json.text || md.json.fileContent || \"\";\n  }\n\n  if (text) {\n    text = text.replace(/^\\s*[-*+]\\s*[•●▪◦⌂]\\s*/gm, '- ');\n    text = text.replace(/^\\s*[-*+]\\s+e\\s+/gm, '- ');\n    text = text.replace(/[ \\t]+/g, ' ');\n    text = text.replace(/\\n{3,}/g, '\\n\\n');\n  }\n\n  results.push({\n    json: {\n      fileName,\n      projectName,\n      page: pageNum,\n      finalContent: `# ${projectName} - Pagina ${pageNum}\\n\\n${imageBlock}${text.trim()}`\n    }\n  });\n}\n\nreturn results;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1568,
+        -7456
+      ],
+      "id": "5e3523e6-2362-4bbf-8cec-89638e8386f7",
+      "name": "filtro-e-assemblaggio-md"
+    },
+    {
+      "parameters": {
+        "jsCode": "const fs = require('fs');\nconst items = $input.all();\nconst projectName = $('Split Out').first().json.projectName;\n\nconst finalContents = items[0].json.finalContent;\nconst joined = Array.isArray(finalContents)\n  ? finalContents\n      .map(c => String(c).replace(/^# [^\\n]+ - Pagina \\d+\\s*\\n\\n?/, ''))\n      .join('\\n\\n---\\n\\n')\n  : String(finalContents || '').replace(/^# [^\\n]+ - Pagina \\d+\\s*\\n\\n?/, '');\n\nconst filePath = `/shared/projects/${projectName}/${projectName}.md`;\nfs.writeFileSync(filePath, joined, 'utf8');\n\nreturn [{ json: { saved: filePath, projectName, bytes: Buffer.byteLength(joined, 'utf8') } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2016,
+        -7552
+      ],
+      "id": "575a136c-95a8-46eb-b97d-241e9991da79",
+      "name": "salva-markdown-totale"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        2688,
+        -6976
+      ],
+      "id": "fe1f1e8b-35ee-4df3-b25e-5b446ba8aa94",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. Recuperiamo tutti gli elementi che entrano nel nodo\nconst allItems = $input.all();\n\n// 2. Filtriamo tenendo solo quelli che sono file Markdown o contengono testo\nconst mdFiles = allItems.filter(item => {\n  // Recuperiamo in modo sicuro il nome o il percorso del file\n  const fileName = item.json.fileName || item.json.filePath || \"\";\n  \n  // Controlliamo se l'estensione è .md o se l'oggetto ha chiavi di testo tipiche\n  const isTextFile = fileName.toLowerCase().endsWith('.md') || \n                     item.json.markdown !== undefined || \n                     item.json.content !== undefined || \n                     item.json.text !== undefined ||\n                     item.json.fileContent !== undefined;\n                     \n  return isTextFile;\n});\n\n// 3. Restituiamo solo i file markdown filtrati (i tuoi 164 elementi)\nreturn mdFiles;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1344,
+        -7456
+      ],
+      "id": "57f797a6-cdbe-40fd-aba4-656e7291b69a",
+      "name": "divisione immagini-markdown",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "jsCode": "const REPLACEMENTS = {\n  \"N©ATT\": \"N° ATT.\",\n  \"EFIfi\": \"Elfi\",\n  \"TS UN\": \"TS U\",\n  \"erriero\": \"guerriero\",\n  \"dii rosso\": \"di rosso\",\n  \"@apelli\": \"capelli\",\n  \"ritor- neranno\": \"ritorneranno\",\n  \"oDUNGEONS\": \"DUNGEONS\",\n  \"GoDRAGONS\": \"DRAGONS\",\n  \"DUNGEONS GoDRAGONS\": \"DUNGEONS & DRAGONS\",\n  \"DUNGEONS &DRAGONS\": \"DUNGEONS & DRAGONS\",\n  \"DUNGEONS&DRAGONS\": \"DUNGEONS & DRAGONS\",\n  \"registratò\": \"registrato\",\n  \"registrat0\": \"registrato\",\n};\n\nlet markdown = $input.item.json.markdown;\n\nif (markdown) {\n  // 1. Unione automatica e preventiva dei trattini a fine riga\n  markdown = markdown.replace(/(\\w+)-\\s*\\n*(\\w+)/g, '$1$2');\n\n  // 2. Applicazione del dizionario dei restauri\n  for (const [badText, goodText] of Object.entries(REPLACEMENTS)) {\n    const safeBadText = badText.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&');\n    const regex = new RegExp(safeBadText, 'g');\n    markdown = markdown.replace(regex, goodText);\n  }\n\n  // 3. OCR: lettera minuscola incollata davanti a parola TUTTO-MAIUSCOLO\n  markdown = markdown.replace(/(^|[\\s\\(,])[a-z]{1,2}([A-Z]{3,}\\b)/g, '$1$2');\n\n  // 4. Rimuovi righe con soli 1-2 caratteri non significativi\n  markdown = markdown.replace(/^[ \\t]*[=\\|][ \\t]*$/gm, '');\n  markdown = markdown.replace(/^[ \\t]*\\.[ \\t]*$/gm, '');\n  markdown = markdown.replace(/^[ \\t]*[a-z]{1,2}[ \\t]*$/gm, '');\n\n  // 5. Rimuovi righe OCR garbage (alta densità di caratteri speciali non markdown)\n  markdown = markdown.split('\\n').map(line => {\n    const t = line.trim();\n    if (!t || t.startsWith('#') || t.startsWith('!') || t.startsWith('[') || t.startsWith('-')) return line;\n    const specials = (t.match(/[{}[\\]\\\\\\/~^`<>]/g) || []).length;\n    if (specials >= 2 && specials / t.length > 0.15) return '';\n    return line;\n  }).join('\\n');\n\n  $input.item.json.markdown = markdown;\n}\n\nreturn $input.item;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1568,
+        -7168
+      ],
+      "id": "5bf33b4d-c274-4b25-bd29-a005b1bb7846",
+      "name": "pulizia-markdown"
+    },
+    {
+      "parameters": {
+        "fieldsToAggregate": {
+          "fieldToAggregate": [
+            {
+              "fieldToAggregate": "finalContent"
+            }
+          ]
+        },
+        "options": {
+          "includeBinaries": false
+        }
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        1792,
+        -7552
+      ],
+      "id": "aa32c572-aa02-4fc5-934f-31133eef30a9",
+      "name": "Aggregate"
+    },
+    {
+      "parameters": {
+        "jsCode": "const SYSTEM = `Tu sei un assistente specializzato nel post-processing di testi estratti tramite OCR da manuali cartacei. Il tuo unico compito e' restituire il testo corretto e pulito.\n\nRegole tassative:\n1. Correggi errori ortografici, refusi OCR e parole unite per errore (es. \"inun\" -> \"in un\", \"oDUNGEONS\" -> \"DUNGEONS\").\n2. Elimina il rumore OCR: caratteri spuri isolati che non fanno parte di parole o strutture (es. lettere casuali, punteggiatura fluttuante).\n3. Conserva INTATTA tutta la formattazione Markdown esistente: titoli (#, ##, ###), tabelle (|), grassetto (**), corsivo (*), elenchi (-, *), immagini (![...](URL)), e qualsiasi altra sintassi Markdown.\n4. NON riassumere, NON commentare, NON aggiungere testo che non sia gia' presente nell'originale.\n5. ATTENZIONE alla prima riga: se inizia a meta' parola o a meta' frase (frammento dalla pagina precedente), copiala IDENTICA senza modificarla.\n6. Restituisci SOLO il testo corretto, senza blocchi di codice (niente backtick tripli).\n7. VIETATO aggiungere frasi come \"Ecco il testo\", \"La formattazione e' stata mantenuta\", \"Ho corretto\", \"Ho seguito le regole\" o qualsiasi altra frase di conferma o commento. Qualunque frase di questo tipo e' VIETATA.\n8. VIETATO aggiungere linee orizzontali (---) non presenti nell'originale.\n9. VIETATO ASSOLUTO tradurre il testo. La lingua originale del documento deve restare IDENTICA: se il testo e' in italiano, resta in italiano. Non cambiare nessuna parola in un'altra lingua.`;\n\nconst MAX_ATTEMPTS = 3;\nconst TIMEOUT_MS = 1800000;\n\nconst items = $input.all();\nconst out = [];\nfor (const item of items) {\n  const md = item.json.markdown;\n  if (!md || !md.trim()) { out.push(item); continue; }\n\n  let raw = null;\n  let lastErr = '';\n  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {\n    try {\n      const resp = await this.helpers.httpRequest({\n        method: 'POST',\n        url: 'http://192.168.178.115:11434/api/chat',\n        headers: { 'Content-Type': 'application/json' },\n        body: {\n          model: 'qwen2.5:3b',\n          stream: false,\n          messages: [ { role: 'system', content: SYSTEM }, { role: 'user', content: md } ],\n          options: { temperature: 0.1, num_ctx: 8192 },\n        },\n        json: true,\n        timeout: TIMEOUT_MS,\n      });\n      raw = (resp.message && resp.message.content ? resp.message.content : '').trim();\n      break;\n    } catch (err) {\n      lastErr = err.message || String(err);\n      if (attempt < MAX_ATTEMPTS) {\n        await new Promise(r => setTimeout(r, 3000 * attempt));\n      }\n    }\n  }\n\n  if (raw === null) {\n    const pageId = item.json.fileName || item.json.filePath || '?';\n    throw new Error('Ollama fallito su pagina \"' + pageId + '\" dopo ' + MAX_ATTEMPTS + ' tentativi. Errore: ' + lastErr);\n  }\n\n  let cleaned = raw;\n  cleaned = cleaned.replace(/^```(?:markdown|text|md)?\\s*\\n?/gim, '').replace(/\\n?```\\s*$/gim, '');\n  cleaned = cleaned.replace(/^(Ecco il testo[^\\n]*|Il testo corretto[^\\n]*|Testo corretto[^\\n]*)\\n[-\\u2014]{2,}\\s*\\n?/si, '');\n  cleaned = cleaned.replace(/^(Ecco il testo[^\\n]*|Il testo corretto[^\\n]*|Testo corretto[^\\n]*)\\n?/si, '');\n  cleaned = cleaned.replace(/\\n[-\\u2014]{2,}\\s*\\n?(La formattazione|Ho mantenuto|Ho conservato|Ho corretto|Ho seguito|Nota:|Note:)[^\\n]*/si, '');\n  cleaned = cleaned.replace(/\\n(La formattazione[^\\n]*|Ho mantenuto[^\\n]*|Ho conservato[^\\n]*|Ho corretto[^\\n]*|Ho seguito[^\\n]*)/si, '');\n  cleaned = cleaned.replace(/\\n[-\\u2014]{3,}\\s*$/s, '');\n  cleaned = cleaned.replace(/^ATTENZIONE alla prima riga[^\\n]*\\n?/gim, '');\n  cleaned = cleaned.replace(/^VIETATO[^\\n]*\\n?/gim, '');\n  cleaned = cleaned.replace(/\\n{3,}/g, '\\n\\n').trim();\n\n\n    // Se LLM ha tradotto in portoghese o spagnolo, usa il testo OCR originale\n    const ptWords = /\\b(também|baixo|quartos|falar|beber)\\b/i;\n    const esWords = /\\b(también|están|tienen|pueden)\\b/i;\n    if (ptWords.test(cleaned) || esWords.test(cleaned)) {\n      cleaned = md;\n    }\n\n  item.json.markdown = cleaned;\n  out.push(item);\n}\nreturn out;"
+      },
+      "id": "c36b40d4-0cbd-440e-9677-7269bd133318",
+      "name": "pulizia-llm-ollama",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1792,
+        -7168
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const fs = require('fs');\nconst items = $input.all();\nconst projectName = items[0]?.json?.projectName || $('Split Out').first().json.projectName;\n\nconst capitoliDir = `/shared/projects/${projectName}/capitoli`;\n\n// Pulisci la directory prima di ogni run per evitare accumulo di vecchi file\nif (fs.existsSync(capitoliDir)) {\n  for (const f of fs.readdirSync(capitoliDir)) {\n    fs.unlinkSync(`${capitoliDir}/${f}`);\n  }\n}\nfs.mkdirSync(capitoliDir, { recursive: true });\n\n// Concatena le pagine rimuovendo il wrapper \"# Progetto - Pagina N\"\nconst texts = items.map(item => {\n  let content = item.json.finalContent || '';\n  content = content.replace(/^# .+? - Pagina \\d+\\s*\\n/, '');\n  return content.trim();\n});\n\nlet fullText = texts.join('\\n\\n<!-- pb -->\\n\\n');\n\n// === PULIZIA GIUNZIONI DI PAGINA ===\n// 1. Parola sillabata a fine pagina\nfullText = fullText.replace(/(\\w)-\\n\\n<!-- pb -->\\n\\n(\\w)/g, '$1$2');\n// 2. Frase che continua oltre il salto pagina\nfullText = fullText.replace(/([^.!?:;»\")\\]\\n])\\n\\n<!-- pb -->\\n\\n([a-zà-ü])/g, '$1 $2');\n// 3. Rimuove i marcatori rimasti\nfullText = fullText.replace(/\\n*<!-- pb -->\\n*/g, '\\n\\n');\n// 4. Normalizza spazi\nfullText = fullText.replace(/\\n{3,}/g, '\\n\\n');\n\n// === SPLIT PER CAPITOLI (heading ## livello 2) ===\nconst parts = fullText.split(/(?=^## )/m).filter(p => p.trim());\n\nif (parts.length === 0) {\n  const filename = `${capitoliDir}/01-completo.md`;\n  fs.writeFileSync(filename, fullText, 'utf8');\n  return [{ json: { salvati: 1, files: [filename], projectName } }];\n}\n\nconst savedFiles = [];\nfor (let i = 0; i < parts.length; i++) {\n  const content = parts[i].trim();\n  const firstLine = content.split('\\n')[0].trim();\n  const title = firstLine.replace(/^#+\\s*/, '').trim();\n  const slug = title\n    .toLowerCase()\n    .replace(/[àáâä]/g, 'a').replace(/[èéêë]/g, 'e')\n    .replace(/[ìíîï]/g, 'i').replace(/[òóôö]/g, 'o').replace(/[ùúûü]/g, 'u')\n    .replace(/[^a-z0-9.]+/g, '-').replace(/^-|-$/g, '').slice(0, 60);\n  const filename = `${capitoliDir}/${String(i + 1).padStart(2, '0')}-${slug}.md`;\n  fs.writeFileSync(filename, content, 'utf8');\n  savedFiles.push({ index: i + 1, title, filename });\n}\n\nreturn [{ json: { salvati: savedFiles.length, files: savedFiles, projectName } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1792,
+        -7360
+      ],
+      "id": "9992b9e0-a309-4223-98e9-1ecd2d731520",
+      "name": "split-capitoli"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const fs = require('fs');\nconst projectName = $input.item.json.projectName;\nconst errorsPath = `/shared/projects/qa/errors/${projectName}.json`;\nfs.mkdirSync('/shared/projects/qa/errors', { recursive: true });\nfs.writeFileSync(errorsPath, '[]', 'utf8');\nreturn $input.item;"
+      },
+      "id": "c8105c42-8528-4e1a-9441-7cb7bf82bfe9",
+      "name": "inizializza-qa",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        -7072
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const fs = require('fs');\nconst item = $input.item;\nconst markdown = item.json.markdown || '';\nconst pageNum = $('Loop Over Items').item.json.pages?.page || 0;\nconst projectName = $('Loop Over Items').item.json.projectName || '';\nconst errorsPath = `/shared/projects/qa/errors/${projectName}.json`;\nconst errors = [];\n\n// 1. Garbage nelle celle tabella HTML\nconst rowRegex = /<tr>([\\s\\S]*?)<\\/tr>/gi;\nlet rowMatch;\nwhile ((rowMatch = rowRegex.exec(markdown)) !== null) {\n  const row = rowMatch[1];\n  const cells = [];\n  const cellRegex = /<td>([^<]*)<\\/td>/g;\n  let cm;\n  while ((cm = cellRegex.exec(row)) !== null) cells.push(cm[1].trim());\n  cells.forEach((cell, idx) => {\n    if (!cell || cell.length < 2) return;\n    const letters = (cell.match(/[a-zA-ZàèéìòùÀÈÉÌÒÙ ]/g) || []).length;\n    const ratio = letters / cell.length;\n    const hasSymbols = /[0-9\\(\\)\\[\\]{}\\\\\\/~^|]/.test(cell);\n    if (ratio < 0.4 && hasSymbols) {\n      const context = cells.filter((c, i) => i !== idx && c).join(' | ').substring(0, 80);\n      errors.push({ page: pageNum, type: 'table_garbage', context, column_index: idx, found: cell });\n    }\n  });\n}\n\n// 2. Lingua straniera\nconst ptWords = /\\b(também|baixo|quartos|falar|beber|então|muito|todos)\\b/i;\nconst esWords = /\\b(también|están|tienen|pueden|este|esta|pero|todo)\\b/i;\nconst ptMatch = markdown.match(ptWords);\nconst esMatch = markdown.match(esWords);\nif (ptMatch || esMatch) {\n  errors.push({ page: pageNum, type: 'wrong_language',\n    language: ptMatch ? 'portuguese' : 'spanish', found: (ptMatch || esMatch)[0] });\n}\n\nif (errors.length > 0) {\n  let existing = [];\n  try { existing = JSON.parse(fs.readFileSync(errorsPath, 'utf8')); } catch (e) {}\n  existing.push(...errors);\n  fs.writeFileSync(errorsPath, JSON.stringify(existing, null, 2), 'utf8');\n}\nreturn item;"
+      },
+      "id": "92f5af5a-f1fd-400b-ad01-ee53d38685fc",
+      "name": "verifica-pagina",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2016,
+        -7168
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const fs = require('fs');\nconst projectName = $('Split Out').first().json.projectName;\nconst errorsPath = `/shared/projects/qa/errors/${projectName}.json`;\nconst solutionsPath = `/shared/projects/qa/solutions.json`;\nconst markdownDir = `/shared/projects/${projectName}/markdown`;\n\nlet errors = [];\ntry { errors = JSON.parse(fs.readFileSync(errorsPath, 'utf8')); } catch (e) {}\nif (errors.length === 0) return $input.all();\n\nlet solutions = [];\ntry { solutions = JSON.parse(fs.readFileSync(solutionsPath, 'utf8')); } catch (e) {}\n\nconst hasSol = (err) => solutions.some(s => s.wrong === err.found);\nconst withSol    = errors.filter(hasSol);\nconst withoutSol = errors.filter(e => !hasSol(e));\n\n// Applica soluzioni ai file su disco + items in memoria\nif (withSol.length > 0) {\n  const pages = [...new Set(withSol.map(e => e.page))];\n  for (const pageNum of pages) {\n    const pagePath = `${markdownDir}/page_${pageNum}.md`;\n    try {\n      let content = fs.readFileSync(pagePath, 'utf8');\n      for (const err of withSol.filter(e => e.page === pageNum)) {\n        const sol = solutions.find(s => s.wrong === err.found);\n        if (sol) content = content.split(err.found).join(sol.correct);\n      }\n      fs.writeFileSync(pagePath, content, 'utf8');\n    } catch (e) {}\n  }\n  for (const item of $input.all()) {\n    const fn = item.json.fileName || item.json.filePath || '';\n    const pm = fn.match(/page_(\\d+)\\.md$/);\n    if (!pm) continue;\n    const pageNum = parseInt(pm[1]);\n    const pageErrs = withSol.filter(e => e.page === pageNum);\n    if (pageErrs.length === 0) continue;\n    let content = item.json.markdown || '';\n    for (const err of pageErrs) {\n      const sol = solutions.find(s => s.wrong === err.found);\n      if (sol) content = content.split(err.found).join(sol.correct);\n    }\n    item.json.markdown = content;\n    item.binary = {};\n  }\n}\n\nif (withoutSol.length > 0) {\n  const summary = withoutSol\n    .map(e => `  Pag.${e.page} [${e.type}]: \"${e.found}\"${e.context ? ' ('+e.context+')' : ''}`)\n    .join('\\n');\n  throw new Error(\n    `Trovati ${withoutSol.length} errori senza soluzione.\\nFile: ${errorsPath}\\n\\n${summary}\\n\\nAggiungi le correzioni in ${solutionsPath} e rilancia il workflow.`\n  );\n}\nreturn $input.all();"
+      },
+      "id": "47ec0b3f-fcba-45e5-adc9-26e1d30924b6",
+      "name": "controllo-errori",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        -7456
+      ]
+    }
+  ],
+  "connections": {
+    "trigger manuale": {
+      "main": [
+        [
+          {
+            "node": "Read/Write Files from Disk1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "crea-cartelle",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "crea-cartelle": {
+      "main": [
+        [
+          {
+            "node": "inizializza-qa",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [
+          {
+            "node": "controllo-errori",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "promt_per_render",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "render_page": {
+      "main": [
+        [
+          {
+            "node": "verifica-immagini",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "pulizia-markdown",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Splittta": {
+      "main": [
+        [
+          {
+            "node": "Split Out",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "verifica-immagini": {
+      "main": [
+        [
+          {
+            "node": "splitta-immagini",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read/Write Files from Disk1": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "promt_per_render": {
+      "main": [
+        [
+          {
+            "node": "render_page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "splitta-immagini": {
+      "main": [
+        [
+          {
+            "node": "estrae-immagini",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "estrae-immagini": {
+      "main": [
+        [
+          {
+            "node": "salva-immagini",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "salva-immagini": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "salva-pagine-markdown": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "pagine-da-binario-a-markdown": {
+      "main": [
+        [
+          {
+            "node": "salva-pagine-markdown",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "filtro-e-assemblaggio-md": {
+      "main": [
+        [
+          {
+            "node": "Aggregate",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "split-capitoli",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "divisione immagini-markdown": {
+      "main": [
+        [
+          {
+            "node": "filtro-e-assemblaggio-md",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "pulizia-markdown": {
+      "main": [
+        [
+          {
+            "node": "pulizia-llm-ollama",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate": {
+      "main": [
+        [
+          {
+            "node": "salva-markdown-totale",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "pulizia-llm-ollama": {
+      "main": [
+        [
+          {
+            "node": "verifica-pagina",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "inizializza-qa": {
+      "main": [
+        [
+          {
+            "node": "Splittta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "verifica-pagina": {
+      "main": [
+        [
+          {
+            "node": "pagine-da-binario-a-markdown",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "controllo-errori": {
+      "main": [
+        [
+          {
+            "node": "divisione immagini-markdown",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "timezone": "Europe/Rome",
+    "saveDataSuccessExecution": "all",
+    "saveExecutionProgress": true,
+    "saveManualExecutions": true
+  }
+}
