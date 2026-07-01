@@ -1,11 +1,10 @@
 from flask import Blueprint, request, jsonify
 import logging
-import os
 import requests
 
 correct_markdown_bp = Blueprint('correct_markdown', __name__)
 
-LITELLM_URL = "http://192.168.178.79:4000/v1/chat/completions"
+LITELLM_URL = os.environ.get("LITELLM_URL", "http://localhost:4000/v1/chat/completions")
 LITELLM_KEY = "Bearer " + os.environ.get("LITELLM_API_KEY", "")
 MAX_CHARS = 3000
 
