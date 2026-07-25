@@ -277,7 +277,14 @@ def save_page_images(doc, page_num, manifest, images_dir):
                 pix = fitz.Pixmap(fitz.csRGB, pix)
             if pix.alpha:
                 pix = fitz.Pixmap(pix, 0)
-            fname = f"img_pag_{page_num}_{b['id']}.jpeg"
+            # Le immagini decorative (sfondo/banner) restano salvate su
+            # disco per riferimento, ma con prefisso "bg_" anziche' "img_":
+            # il nodo n8n che assembla il markdown finale legge la cartella
+            # images/ per pattern (regex su "img_pag_") anziche' dal JSON,
+            # quindi questo prefisso le esclude automaticamente dal markdown
+            # senza dover modificare il workflow.
+            prefix = "bg" if b.get("decorative") else "img"
+            fname = f"{prefix}_pag_{page_num}_{b['id']}.jpeg"
             fpath = os.path.join(images_dir, fname)
             pix.save(fpath, output="jpeg", jpg_quality=92)
         except Exception as e:

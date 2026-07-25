@@ -18,6 +18,7 @@ Consolida in un unico script le tecniche validate separatamente:
 Uso: manifest_final.py <file.pdf> <pagina_inizio> [<pagina_fine>]
 """
 import fitz
+import numpy as np
 import json
 import re
 import sys
@@ -399,7 +400,21 @@ def extract_line_groups(text_dict, h2_thresh, h3_thresh, body_color=None, page=N
             big_size = max(prev["max_size"], g["max_size"])
             max_gap = PARA_MERGE_MAX_GAP
             min_gap = PARA_MERGE_MIN_GAP
-            if big_size >= 20:
+            # Stesso principio del titolo grande, ma per heading di taglia
+            # MEDIA (h2/h3, non paragrafi): un titolo su due righe a ~12pt
+            # (es. "BACKGROUND" / "DELL'AVVENTURA") puo' avere
+            # un'interlinea di 5.9-6.2pt, appena sopra la soglia fissa 5.0 -
+            # frammentandolo in due heading_h2 separati, il primo vuoto
+            # (verificato: 8 occorrenze in "Le Chiavi del Caveau Aureo").
+            # Ristretto ESPLICITAMENTE alla fusione heading-con-heading (non
+            # paragraph-con-paragraph): allargare la soglia proporzionale a
+            # questa fascia di dimensione per i paragrafi ha gia' causato la
+            # sparizione di un intero paragrafo di corpo testo su una pagina
+            # SRD (10-13pt, vedi nota sopra) - i paragrafi normali possono
+            # avere gap piu' ampi tra loro per ragioni non legate a un
+            # titolo spezzato, gli heading no.
+            is_heading_pair = g["font_type"] in ("heading_h2", "heading_h3")
+            if big_size >= 20 or (is_heading_pair and big_size >= 10):
                 max_gap = max(max_gap, big_size * PARA_MERGE_GAP_RATIO)
                 min_gap = min(min_gap, big_size * PARA_MERGE_MIN_GAP_RATIO)
             # Un paragrafo a due colonne (es. pagina INDICE) puo' avere una
@@ -919,29 +934,84 @@ def classify_page(doc, page, hf_index=None, hf_threshold=2):
                 continue
             image_rects.append({"xref": xref, "idx": img_idx, "bbox": rc})
 
-    # Sfondo/texture di pagina: alcuni PDF (export InDesign con bleed)
-    # incollano un'immagine che copre l'intera pagina su OGNI pagina - non
-    # e' un'illustrazione, e' un layer di texture/carta che include persino
-    # un'eco sbiadita del testo e dei fregi decorativi gia' presenti come
-    # contenuto vero altrove (verificato visivamente: pag. 3 di "Le Chiavi
-    # del Caveau Aureo", l'immagine di sfondo mostra un fantasma dell'intero
-    # testo della pagina, i fregi dorati d'angolo e persino il numero di
-    # pagina, tutti gia' estratti come testo/decorazione reali altrove).
-    # Va distinta pero' da una VERA illustrazione a piena pagina (es. la
-    # copertina, o le pagine di apertura capitolo senza testo): il segnale
-    # e' la presenza di testo reale estratto separatamente sulla stessa
-    # pagina - se c'e', lo sfondo e' ridondante (il contenuto vero esiste
-    # gia' come testo); se la pagina non ha quasi testo, l'immagine a piena
-    # pagina e' probabilmente l'unico contenuto e va tenuta (verificato:
-    # 43 pagine nel libro hanno un'immagine a piena pagina con zero testo
-    # reale, tra cui la copertina - pagine dove escluderla perderebbe
-    # l'unico contenuto della pagina).
+    # Frammenti decorativi di layout (sfondo/texture, banner di margine,
+    # targhette d'angolo con titolo corrente + numero pagina): alcuni PDF
+    # (export InDesign con bleed) scompongono lo sfondo grafico della
+    # pagina in PIU' immagini separate anziche' una sola (verificato
+    # visivamente: pag. 6 di "Le Chiavi del Caveau Aureo" ha, oltre al vero
+    # sfondo a piena pagina, un banner decorativo a larghezza piena in cima
+    # e una targhetta d'angolo con titolo capitolo + numero pagina in basso
+    # a destra - nessuna delle due e' contenuto, sono varianti dello stesso
+    # layer decorativo). Si TAGGANO (non si rimuovono) come "decorative":
+    # restano nel manifest e vengono comunque salvate su disco (vedi
+    # save_page_images), ma con un prefisso di nome file diverso che il
+    # nodo n8n di assemblaggio (che legge la cartella images/ per pattern,
+    # non il JSON) esclude automaticamente dal markdown finale - un errore
+    # di classificazione qui NON perde contenuto, al massimo lascia
+    # un'immagine fuori dal markdown pur restando disponibile su disco.
+    def _is_full_page(rc):
+        x0, y0, x1, y1 = rc
+        return x0 <= 2 and y0 <= 2 and x1 >= W - 2 and y1 >= H - 2
+
+    def _is_margin_banner(rc):
+        # banner decorativo: larghezza quasi piena pagina, altezza contenuta,
+        # ancorato al margine superiore o inferiore (es. 591.7x96 a y0=-1.4)
+        x0, y0, x1, y1 = rc
+        w, h = x1 - x0, y1 - y0
+        wide_enough = w >= W * 0.9
+        short_enough = h <= H * 0.15
+        at_top = y0 <= 2
+        at_bottom = y1 >= H - 2
+        return wide_enough and short_enough and (at_top or at_bottom)
+
+    def _is_corner_touching(rc):
+        # ancorata a ESATTAMENTE due bordi adiacenti (un vero angolo) - una
+        # illustrazione a piena pagina tocca tutti e 4 i bordi (gia' gestita
+        # sopra), una con cornice decorativa tocca al piu' un bordo
+        # (verificato: pag. 3, immagine reale x0=-1.4 ma y0, x1, y1 interni)
+        x0, y0, x1, y1 = rc
+        touches_left = x0 <= 2
+        touches_right = x1 >= W - 2
+        touches_top = y0 <= 2
+        touches_bottom = y1 >= H - 2
+        edges_touched = sum([touches_left, touches_right, touches_top, touches_bottom])
+        return edges_touched == 2 and not (touches_left and touches_right) and not (touches_top and touches_bottom)
+
+    def _frac_black(xref):
+        # la geometria da sola NON basta a distinguere una targhetta
+        # decorativa (titolo capitolo + numero pagina) da una vera
+        # illustrazione che sconfina in un angolo (verificato: un ritratto
+        # a pag. 8, 327.9x415.2 in alto a sinistra, soddisfa lo stesso
+        # criterio geometrico di una targhetta reale a pag. 6). Il segnale
+        # che le distingue in modo netto e' il CONTENUTO: le targhette sono
+        # perlopiu' una targa nera piena con testo bianco sopra (misurato:
+        # 55-63% di pixel quasi-neri su 6 targhette confermate su piu'
+        # pagine), mentre le illustrazioni vere - anche quelle scure o che
+        # sconfinano in un angolo - restano nettamente sotto il 25% (margine
+        # ampio, nessun caso intermedio osservato).
+        try:
+            pix = fitz.Pixmap(doc, xref)
+            if pix.colorspace is None:
+                return 0.0
+            if pix.colorspace.n not in (1, 3):
+                pix = fitz.Pixmap(fitz.csRGB, pix)
+            if pix.alpha:
+                pix = fitz.Pixmap(pix, 0)
+            arr = np.frombuffer(pix.samples, dtype=np.uint8).reshape(pix.height, pix.width, pix.n)
+            gray = arr.mean(axis=2)
+            return float((gray < 30).mean())
+        except Exception:
+            return 0.0
+
     total_real_text = sum(len(g["text"]) for g in raw_lines)
-    if total_real_text > 150:
-        def _is_full_page(rc):
-            x0, y0, x1, y1 = rc
-            return x0 <= 2 and y0 <= 2 and x1 >= W - 2 and y1 >= H - 2
-        image_rects = [ir for ir in image_rects if not _is_full_page(ir["bbox"])]
+    for ir in image_rects:
+        rc = ir["bbox"]
+        decorative = _is_margin_banner(rc)
+        if total_real_text > 150 and _is_full_page(rc):
+            decorative = True
+        if not decorative and _is_corner_touching(rc) and _frac_black(ir["xref"]) > 0.4:
+            decorative = True
+        ir["decorative"] = decorative
 
     body_size, h2_thresh, h3_thresh = page_font_thresholds(text_dict)
     body_color = page_body_color(text_dict)
@@ -997,8 +1067,13 @@ def classify_page(doc, page, hf_index=None, hf_threshold=2):
                     break
 
         # 3. didascalia immagine: subito sotto un'immagine, font piu' piccolo del corpo, x sovrapposta
+        # (le immagini decorative sono escluse: un banner o una targhetta
+        # d'angolo non hanno una vera didascalia, e includerle rischia di
+        # "rubare" a un'immagine reale vicina il testo che la descrive)
         if btype is None:
             for ir in image_rects:
+                if ir.get("decorative"):
+                    continue
                 irb = ir["bbox"]
                 if (0 <= (bbox[1] - irb[3]) < 40 and x_overlap(bbox, irb)
                         and grp["max_size"] < body_size * 0.95):
@@ -1018,7 +1093,8 @@ def classify_page(doc, page, hf_index=None, hf_threshold=2):
 
     for i, ir in enumerate(image_rects):
         blocks_out.append({"id": f"img{i+1}", "type": "image",
-                            "bbox": [round(v, 1) for v in ir["bbox"]], "xref": ir["xref"]})
+                            "bbox": [round(v, 1) for v in ir["bbox"]], "xref": ir["xref"],
+                            "decorative": ir.get("decorative", False)})
 
     for i, t in enumerate(tables):
         blocks_out.append({"id": f"tbl{i+1}", "type": "table", "bbox": t["bbox"],

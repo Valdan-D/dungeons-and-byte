@@ -127,6 +127,7 @@ Response: { "status": "success", "elements": […], "markdown": "…", "raw": "�
 ```
 flask
 PyMuPDF (fitz)
+numpy
 Pillow
 pytesseract
 unstructured[pdf]
