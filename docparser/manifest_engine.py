@@ -42,6 +42,18 @@ _FUNC_END = re.compile(
 DICE_RE = re.compile(r'^\d*d\d+$', re.I)
 ROW_START_RE = re.compile(r'^\d+([–\-]\d+)?$')
 
+# Vocabolario fisso delle etichette di campo nelle schede statistiche dei
+# mostri D&D 5e - standard del sistema di gioco, non specifico di un libro.
+# Usato per escludere queste righe dalla classificazione heading (vedi
+# classify_line_font): il colore "fuori norma" usato per evidenziarle in
+# grassetto in molti manuali coincide spesso con quello dei titoli veri, ma
+# semanticamente sono dati di scheda, non intestazioni di sezione.
+_STATBLOCK_FIELD_RE = re.compile(
+    r'^(Classe Armatura|Punti Ferita|Velocit[aà]|Tiri Salvezza|Abilit[aà]|'
+    r'Resistenze|Vulnerabilit[aà]|Immunit[aà] ai Danni|Immunit[aà] alle Condizioni|'
+    r'Sensi|Lingue|Sfida|Bonus di [Cc]ompetenza|Attrezzatura)\b'
+)
+
 
 # ---------------------------------------------------------------------------
 # geometria di base
@@ -147,10 +159,45 @@ def classify_line_font(text, max_size, bold, h2_thresh, h3_thresh, color_dist=0,
     residuo, un problema piu' piccolo perche' non frammenta i capitoli (solo
     heading_h2 lo fa)."""
     ok_len = len(text) < 120 and not _FUNC_END.search(text)
-    is_decoration = len(text) <= 2 and text.isalpha()
-    if max_size >= h2_thresh and ok_len and not is_decoration:
+    # Un capolettera puo' decodificare come un carattere NON alfabetico
+    # (es. "!" invece di una lettera vera) quando il font subset ha un
+    # ToUnicode CMap sbagliato per quel glifo specifico - stessa ambiguita'
+    # font gia' vista altrove (l/1, dadi, aree) ma qui sul capolettera
+    # stesso (verificato: pag. 63 di "Le Chiavi del Caveau Aureo", un
+    # capolettera a 53.2pt, ~8x il corpo testo, decodificato "!"). Nessun
+    # heading vero in questi manuali e' un singolo carattere isolato
+    # (verificato: i 14 heading di 1 carattere gia' presenti in produzione
+    # sono TUTTI ornamenti - virgole, apici, bullet - mai contenuto reale),
+    # quindi estendere l'esclusione a QUALUNQUE carattere singolo (non solo
+    # alfabetico) non rischia di scartare un titolo genuino.
+    _KNOWN_ORNAMENT_TEXTS = {":.1"}
+    is_decoration = (
+        len(text) == 1
+        or (len(text) == 2 and text.isalpha())
+        or text in _KNOWN_ORNAMENT_TEXTS
+    )
+    # Le etichette dei campi nelle schede statistiche dei mostri D&D 5e (es.
+    # "Classe Armatura 17 (armatura naturale)", "Sfida 1 (200 PE)") sono
+    # spesso tinte dello stesso colore "fuori norma" usato per i titoli veri
+    # di questi manuali, e la dimensione non le distingue in modo affidabile
+    # (verificato empiricamente: su alcune pagine sono piu' piccole del
+    # corpo testo, su altre uguali - dipende dalla mediana calcolata per
+    # quella pagina specifica, non e' un segnale stabile). Il vocabolario
+    # dei campi e' pero' FISSO e standard in tutto il sistema di gioco 5e
+    # (non specifico di questo libro): riconoscerli per contenuto, non per
+    # stile, evita di doverli escludere pagina per pagina.
+    is_statblock_field = bool(_STATBLOCK_FIELD_RE.match(text))
+    # Una riga che inizia per minuscola non e' mai un heading vero (titoli
+    # ben impaginati iniziano sempre per maiuscola) - quasi sempre e' la
+    # continuazione a capo di una riga precedente (es. un campo scheda
+    # multi-riga: "Immunita' alle Condizioni ...indebolimento," seguito da
+    # "paralizzato, pietrificato, spaventato" su una riga fisica separata,
+    # che eredita lo stesso colore "fuori norma" e sfuggirebbe al controllo
+    # sul vocabolario perche' non inizia con l'etichetta di campo).
+    starts_lowercase = bool(text[:1]) and text[:1].islower()
+    if max_size >= h2_thresh and ok_len and not is_decoration and not starts_lowercase:
         return "heading_h2"
-    if (max_size >= h3_thresh or color_dist >= color_thresh) and ok_len and not is_decoration:
+    if (max_size >= h3_thresh or color_dist >= color_thresh) and ok_len and not is_decoration and not is_statblock_field and not starts_lowercase:
         return "heading_h3"
     if bold and len(text) < 100:
         return "bold"
@@ -174,6 +221,8 @@ def extract_line_groups_simple(text_dict):
 
 PARA_MERGE_MAX_GAP = 5.0
 PARA_MERGE_MIN_GAP = -2.0
+PARA_MERGE_GAP_RATIO = 0.75
+PARA_MERGE_MIN_GAP_RATIO = -0.3
 
 
 def ocr_fix_replacement_chars(page, groups, lang="ita", x_padding=2.0, y_padding=0.3, zoom=6.0):
@@ -244,7 +293,7 @@ def ocr_fix_replacement_chars(page, groups, lang="ita", x_padding=2.0, y_padding
     return out
 
 
-def extract_line_groups(text_dict, h2_thresh, h3_thresh, body_color=None, page=None):
+def extract_line_groups(text_dict, h2_thresh, h3_thresh, body_color=None, page=None, table_bboxes=None):
     """
     Cammina riga per riga dentro ogni blocco PyMuPDF, classifica ogni riga
     singolarmente, poi fonde righe fisiche CONSECUTIVE dello stesso tipo
@@ -263,15 +312,36 @@ def extract_line_groups(text_dict, h2_thresh, h3_thresh, body_color=None, page=N
         if b.get("type") != 0:
             continue
         for line in b.get("lines", []):
+            spans = [s for s in line.get("spans", []) if s["text"].strip()]
+            if not spans:
+                continue
+            # Un capolettera a volte non e' una riga a se' (caso gia' gestito
+            # altrove) ma uno SPAN dentro la stessa riga fisica del testo che
+            # introduce (es. "Questa stanza contiene ... due si" + span "I" a
+            # 40pt + prosegue sulla riga fisica successiva "trovano..."): la
+            # sua dimensione, se lasciata entrare nel calcolo, promuove
+            # l'intera frase a heading fasullo. Si esclude dal calcolo del
+            # max_size della riga uno span di 1-2 caratteri quando la sua
+            # dimensione e' molto maggiore (>=1.8x) di quella del testo vero
+            # della stessa riga - stesso principio gia' usato per i glifi '�'
+            # non decodificati, generalizzato a un carattere reale ma fuori
+            # scala. Il testo dello span resta comunque incluso nella riga.
+            normal_max_size = max(
+                (s["size"] for s in spans if len(s["text"].strip()) > 2),
+                default=0,
+            )
             parts = []
             max_size = 0
             bold = False
             color_chars = {}
-            for span in line.get("spans", []):
+            for span in spans:
                 t = span["text"].strip()
-                if not t:
-                    continue
                 parts.append(t)
+                is_replacement_glyph = not t.strip("�")
+                is_embedded_dropcap = (
+                    len(t) <= 2 and normal_max_size > 0
+                    and span["size"] >= normal_max_size * 1.8
+                )
                 # Glifi non decodificati (U+FFFD, legature/font subset senza
                 # ToUnicode) a volte riportano una dimensione bogus, spesso
                 # piu' grande del testo reale circostante: se lasciata entrare
@@ -279,7 +349,7 @@ def extract_line_groups(text_dict, h2_thresh, h3_thresh, body_color=None, page=N
                 # falso heading. Il testo del glifo viene comunque incluso in
                 # parts (e corretto poi da ocr_fix_replacement_chars), solo la
                 # sua dimensione va esclusa dalla classificazione.
-                if t.strip("�") and span["size"] > max_size:
+                if not is_replacement_glyph and not is_embedded_dropcap and span["size"] > max_size:
                     max_size = span["size"]
                 if any(k in span.get("font", "") for k in ("Bold", "bold", "Heavy")):
                     bold = True
@@ -306,7 +376,66 @@ def extract_line_groups(text_dict, h2_thresh, h3_thresh, body_color=None, page=N
         if groups and groups[-1]["font_type"] == g["font_type"]:
             prev = groups[-1]
             gap = g["bbox"][1] - prev["bbox"][3]
-            if PARA_MERGE_MIN_GAP <= gap <= PARA_MERGE_MAX_GAP:
+            # Un titolo su piu' righe (es. "IL CAVEAU" / "DI VIDORANT", uno
+            # sotto l'altro a 32pt) ha naturalmente un'interlinea proporzionale
+            # alla dimensione del font, non fissa - una soglia tarata sul
+            # corpo testo (~6.7pt) lascia fuori per un soffio l'interlinea di
+            # un titolo grande (verificato: 5.1-5.9pt di gap su titoli 32pt,
+            # appena sopra la soglia fissa 5.0), frammentandolo in due heading
+            # separati invece di uno solo (il primo dei due resta vuoto).
+            # La soglia proporzionale scatta SOLO per font davvero grandi
+            # (>=20pt, tipico solo di titoli veri): applicata anche a testo di
+            # dimensione media (10-13pt, sottotitoli/glossari) ha causato la
+            # sparizione di un intero paragrafo su una pagina SRD durante il
+            # test - un'interazione imprevista con la fusione in ordine di
+            # stream, non riprodotta isolando il fix ai soli font grandi.
+            # Serve anche in direzione opposta: titoli decorativi molto grandi
+            # (es. "P R I G I ON I E RA" / "N°13", entrambi 39.8pt) a volte
+            # hanno bounding box che si SOVRAPPONGONO leggermente tra una riga
+            # e l'altra (ascender/descender dei glifi), con gap negativo oltre
+            # la soglia minima fissa (-2.0, tarata sul corpo testo) - anche il
+            # minimo va scalato con la stessa logica, altrimenti il titolo
+            # resta spezzato in due heading separati.
+            big_size = max(prev["max_size"], g["max_size"])
+            max_gap = PARA_MERGE_MAX_GAP
+            min_gap = PARA_MERGE_MIN_GAP
+            if big_size >= 20:
+                max_gap = max(max_gap, big_size * PARA_MERGE_GAP_RATIO)
+                min_gap = min(min_gap, big_size * PARA_MERGE_MIN_GAP_RATIO)
+            # Un paragrafo a due colonne (es. pagina INDICE) puo' avere una
+            # riga di sinistra e una di destra alla stessa altezza Y con un
+            # gap verticale minimo compatibile con la normale interlinea:
+            # senza un controllo di colonna, la fusione salda testo di
+            # colonne diverse in un unico blocco illeggibile (verificato su
+            # "Le Chiavi del Caveau Aureo" pag. 209, indice finale). Il
+            # controllo va limitato al tipo "paragraph" e disattivato dentro
+            # o vicino a una tabella rilevata: il rilevamento tabelle (grid)
+            # a volte non cattura tutte le righe di una tabella molto larga
+            # (es. tabella Armi in SRD, colonne strette e ravvicinate) e il
+            # blocco 'classify_page' scarta qualunque gruppo di testo il cui
+            # centro cada dentro una tabella rilevata, assumendo che il
+            # contenuto sia gia' nella griglia - un bbox fuso permissivamente
+            # a volte finiva per caso FUORI da quella zona ed era quindi
+            # l'unico modo in cui quel testo sopravviveva; bloccare la
+            # fusione anche li' non correggerebbe nulla, lo farebbe sparire
+            # del tutto invece di comparire (mal) fuso (verificato: pag. 103
+            # e 104 di SRD, righe di nomi arma perse interamente col
+            # controllo attivo ovunque).
+            same_column = True
+            if g["font_type"] == "paragraph":
+                near_table = False
+                if table_bboxes:
+                    for tb in table_bboxes:
+                        for bx in (prev["bbox"], g["bbox"]):
+                            cx, cy = bbox_center(bx)
+                            if tb[0] - 3 <= cx <= tb[2] + 3 and tb[1] - 3 <= cy <= tb[3] + 3:
+                                near_table = True
+                                break
+                        if near_table:
+                            break
+                if not near_table:
+                    same_column = x_overlap(prev["bbox"], g["bbox"])
+            if min_gap <= gap <= max_gap and same_column:
                 prev["text"] += " " + g["text"]
                 prev["bbox"] = union_bbox(prev["bbox"], g["bbox"])
                 prev["max_size"] = max(prev["max_size"], g["max_size"])
@@ -790,10 +919,34 @@ def classify_page(doc, page, hf_index=None, hf_threshold=2):
                 continue
             image_rects.append({"xref": xref, "idx": img_idx, "bbox": rc})
 
+    # Sfondo/texture di pagina: alcuni PDF (export InDesign con bleed)
+    # incollano un'immagine che copre l'intera pagina su OGNI pagina - non
+    # e' un'illustrazione, e' un layer di texture/carta che include persino
+    # un'eco sbiadita del testo e dei fregi decorativi gia' presenti come
+    # contenuto vero altrove (verificato visivamente: pag. 3 di "Le Chiavi
+    # del Caveau Aureo", l'immagine di sfondo mostra un fantasma dell'intero
+    # testo della pagina, i fregi dorati d'angolo e persino il numero di
+    # pagina, tutti gia' estratti come testo/decorazione reali altrove).
+    # Va distinta pero' da una VERA illustrazione a piena pagina (es. la
+    # copertina, o le pagine di apertura capitolo senza testo): il segnale
+    # e' la presenza di testo reale estratto separatamente sulla stessa
+    # pagina - se c'e', lo sfondo e' ridondante (il contenuto vero esiste
+    # gia' come testo); se la pagina non ha quasi testo, l'immagine a piena
+    # pagina e' probabilmente l'unico contenuto e va tenuta (verificato:
+    # 43 pagine nel libro hanno un'immagine a piena pagina con zero testo
+    # reale, tra cui la copertina - pagine dove escluderla perderebbe
+    # l'unico contenuto della pagina).
+    total_real_text = sum(len(g["text"]) for g in raw_lines)
+    if total_real_text > 150:
+        def _is_full_page(rc):
+            x0, y0, x1, y1 = rc
+            return x0 <= 2 and y0 <= 2 and x1 >= W - 2 and y1 >= H - 2
+        image_rects = [ir for ir in image_rects if not _is_full_page(ir["bbox"])]
+
     body_size, h2_thresh, h3_thresh = page_font_thresholds(text_dict)
     body_color = page_body_color(text_dict)
 
-    line_groups = extract_line_groups(text_dict, h2_thresh, h3_thresh, body_color=body_color, page=page)
+    line_groups = extract_line_groups(text_dict, h2_thresh, h3_thresh, body_color=body_color, page=page, table_bboxes=[t["bbox"] for t in tables])
 
     # scarta i gruppi di testo gia' consumati da una tabella rilevata, per
     # evitare che lo stesso contenuto compaia due volte nel manifest
@@ -857,7 +1010,8 @@ def classify_page(doc, page, hf_index=None, hf_threshold=2):
         if btype is None:
             btype = grp["font_type"]
 
-        entry = {"id": block_id, "type": btype, "bbox": [round(v, 1) for v in bbox], "text": text[:300]}
+        entry = {"id": block_id, "type": btype, "bbox": [round(v, 1) for v in bbox], "text": text,
+                 "max_size": round(grp["max_size"], 1)}
         if anchor:
             entry["anchor"] = anchor
         blocks_out.append(entry)

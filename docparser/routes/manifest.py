@@ -28,6 +28,35 @@ def _normalize_dice_token(tok):
     return tok.replace('l', '1').replace('I', '1').replace('O', '0').replace('o', '0')
 
 
+_KNOWN_CORRUPTION_RE = re.compile(r'## _ A_Z_IO.*?(?=\n\nRaggio di luce)', re.DOTALL)
+
+
+def fix_known_corruptions(text):
+    """Correzioni puntuali una-tantum per corruzioni uniche gia' diagnosticate
+    a mano, non riconducibili a un pattern generale (a differenza di
+    fix_jj_ligature/fix_dice_notation/fix_area_code_notation). Qui: pag.86 di
+    "Le Chiavi del Caveau Aureo", l'heading "AZIONI BONUS" nella scheda
+    DIFENSORE MECCANICO viene decodificato con trattini bassi e '�' al posto
+    di quasi ogni lettera (font-subset del tutto privo di ToUnicode per quei
+    glifi, diverso dal caso l/1 - qui non c'e' un singolo carattere ambiguo
+    da correggere, l'informazione manca del tutto). Si sostituisce l'intero
+    frammento (identificato tra due ancore stabili: l'inizio riconoscibile
+    "_ A_Z_IO" e il paragrafo "Raggio di luce" che segue immediatamente
+    l'heading nel testo originale) con il testo corretto."""
+    return _KNOWN_CORRUPTION_RE.sub("## AZIONI BONUS", text)
+
+
+def fix_jj_ligature(text):
+    """Un'altra ambiguita' di font isolata in questo libro: nel testo in
+    grassetto (font diverso dal corpo, es. "AJJarme." invece di "Allarme.",
+    "deJJe" invece di "delle") il doppio "ll" viene decodificato come "JJ".
+    A differenza di l/1 o Z/1, qui non serve validazione incrociata: "JJ"
+    (doppia J maiuscola) non e' mai una sequenza valida in una parola
+    italiana, quindi la sostituzione con "ll" e' sicura senza eccezioni -
+    verificato su tutte le occorrenze del libro (AJJarme/AJJarmi/deJJe)."""
+    return text.replace("JJ", "ll")
+
+
 def fix_dice_notation(text):
     def repl(m):
         count_raw, d_char, size_raw = m.group(1), m.group(2), m.group(3)
@@ -98,21 +127,99 @@ def order_blocks_for_markdown(manifest):
     sinistra poi destra) cosi' come li restituisce PyMuPDF, ma tabelle e
     immagini vengono aggiunte in coda dal classificatore e vanno reinserite
     nella posizione corretta rispetto al testo circostante. Si riordina
-    tutto per (colonna, Y) - stesso criterio colonna-poi-riga del testo."""
+    tutto per (colonna, Y) - stesso criterio colonna-poi-riga del testo.
+
+    Un titolo di pagina (heading_h2) e' spesso centrato orizzontalmente
+    sull'intera pagina (non confinato in una colonna) - il suo centro puo'
+    cadere per pochi punti oltre l'esatto punto medio W/2 usato per decidere
+    la colonna (verificato: pag. 209 di "Le Chiavi del Caveau Aureo",
+    titolo "INDICE" a 1.5pt oltre il centro), finendo bucketizzato nella
+    colonna sbagliata - tutto il contenuto della colonna sinistra lo precede
+    allora nel markdown finale, anche se e' l'elemento piu' in alto della
+    pagina. Si tratta come titolo di pagina (ordinato per Y, prima di
+    entrambe le colonne) solo quando e' vicino al centro ENTRO una
+    tolleranza stretta (non un singolo punto esatto, stesso principio del
+    fix di fusione a due colonne) E si trova in cima alla pagina (nessun
+    altro blocco di testo/tabella sopra di lui) - un heading_h3 di
+    sottosezione a meta' pagina, anche se vicino al centro per coincidenza,
+    resta legato alla sua colonna."""
     W = manifest["width"]
+    blocks = manifest["blocks"]
+    CENTER_TOLERANCE = 15.0
+    min_y = min((b["bbox"][1] for b in blocks if b["type"] not in ("image", "table")), default=0.0)
 
     def key(b):
         bbox = b["bbox"]
         cx = (bbox[0] + bbox[2]) / 2
+        if (b["type"] == "heading_h2" and abs(cx - W / 2) <= CENTER_TOLERANCE
+                and bbox[1] <= min_y + 5):
+            return (-1, bbox[1])
         col = 0 if cx < W / 2 else 1
         return (col, bbox[1])
 
-    return sorted(manifest["blocks"], key=key)
+    return sorted(blocks, key=key)
+
+
+def merge_dropcap_paragraphs(blocks):
+    """Un capolettera (blocco 'paragraph' isolato di 1-2 lettere, gia'
+    derubricato da heading in classify_line_font perche' troppo corto per
+    essere un titolo vero) va ricongiunto come prefisso al paragrafo a cui
+    appartiene. L'ordine (prima o dopo, nella lista ordinata per Y) non e'
+    affidabile: un capolettera parte alla stessa altezza Y del testo che
+    introduce, per definizione - un margine di 1pt decide quale dei due
+    ordina prima, e puo' capitare da entrambi i lati (verificato: a volte
+    precede il paragrafo, a volte lo segue). Si sceglie il paragrafo
+    adiacente piu' vicino in Y (precedente o successivo) e gli si antepone
+    la lettera (maiuscola, i capolettera decorano sempre l'inizio di una
+    frase).
+
+    Un piccolo ornamento decorativo isolato (es. un dingbat di fine sezione
+    in font simbolico) soddisfa lo stesso criterio testuale ma NON va unito
+    a nulla: si distingue da un vero capolettera per la dimensione, sempre
+    molto maggiore del paragrafo che introduce (e' letteralmente cio' che
+    rende un capolettera tale - un ornamento e' invece spesso piu' PICCOLO
+    del corpo testo). Se nessun paragrafo adiacente e' significativamente
+    piu' piccolo del blocco candidato, questo resta isolato com'era."""
+    out = []
+    n = len(blocks)
+    for i, b in enumerate(blocks):
+        text = (b.get("text") or "").strip()
+        is_candidate = b["type"] == "paragraph" and len(text) <= 2 and text.isalpha()
+        if not is_candidate:
+            out.append(b)
+            continue
+
+        prev_par = out[-1] if out and out[-1]["type"] == "paragraph" else None
+        next_par = blocks[i + 1] if i + 1 < n and blocks[i + 1]["type"] == "paragraph" else None
+        dropcap_size = b.get("max_size", 0)
+
+        def is_real_dropcap(neighbor):
+            if neighbor is None:
+                return False
+            neighbor_size = neighbor.get("max_size", 0)
+            return neighbor_size > 0 and dropcap_size >= neighbor_size * 1.8
+
+        prev_ok = is_real_dropcap(prev_par)
+        next_ok = is_real_dropcap(next_par)
+        if not prev_ok and not next_ok:
+            out.append(b)
+            continue
+
+        gap_prev = (b["bbox"][1] - prev_par["bbox"][3]) if prev_ok else float("inf")
+        gap_next = (next_par["bbox"][1] - b["bbox"][3]) if next_ok else float("inf")
+        letter = text.upper()
+        if abs(gap_prev) <= abs(gap_next):
+            prev_par["text"] = letter + prev_par["text"]
+        else:
+            next_par["text"] = letter + next_par["text"]
+        # il blocco capolettera stesso non va aggiunto a out (assorbito nel paragrafo)
+    return out
 
 
 def render_markdown(manifest):
     parts = []
-    for b in order_blocks_for_markdown(manifest):
+    ordered = merge_dropcap_paragraphs(order_blocks_for_markdown(manifest))
+    for b in ordered:
         t = b["type"]
         if t in ("header_footer", "page_number", "image"):
             continue
@@ -144,7 +251,7 @@ def render_markdown(manifest):
         else:  # paragraph, box, image_caption
             if text:
                 parts.append(text)
-    return fix_dice_notation("\n\n".join(parts))
+    return fix_dice_notation(fix_jj_ligature(fix_known_corruptions("\n\n".join(parts))))
 
 
 def save_page_images(doc, page_num, manifest, images_dir):

@@ -37,6 +37,21 @@ Request:  { "pdfPath": "…/pages/page_1.pdf", "page": 1 }
 Response: { "status": "success", "markdown": "…", "elements": […], "method": "local_venv_unstructured_hi_res" }
 ```
 
+**`POST /manifest_from_path`**
+Native-PDF fast path (V1.1-beta): parses every page of a whole PDF directly with
+PyMuPDF (no LLM, no OCR) and returns ready-to-render markdown per page in one call.
+Classifies each physical line as heading/bold/paragraph/box/table/image via font
+size and color relative to the page's own body-text median, then reassembles
+reading order across two-column layouts. Handles drop caps, monster stat-block
+field labels, embedded font glyph ambiguities (e.g. l/1, dice notation, area
+codes), shaded/text-grid table detection, and redundant full-page background
+images. See `manifest_engine.py` and `routes/manifest.py` for the classification
+heuristics.
+```json
+Request:  { "pdfPath": "/shared/projects/pool/manual.pdf", "projectName": "My Manual" }
+Response: [{ "page": 1, "markdown": "…", "images": ["img_pag_1_img1.jpeg", …] }, …]
+```
+
 **`POST /ocr_from_path`**
 Tesseract OCR fallback for scanned pages. Renders at ~216 DPI before OCR.
 ```json
