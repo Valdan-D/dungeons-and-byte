@@ -9,9 +9,12 @@ from routes.crop import crop_bp
 from routes.split_markdown import split_markdown_bp
 from routes.correct_markdown import correct_markdown_bp
 from routes.dots_mocr import dots_mocr_bp
+from routes.manifest import manifest_bp
+
 import logging
 import sys
 
+# Configurazione logging: mostra timestamp, livello e messaggio su stdout
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
@@ -20,6 +23,7 @@ logging.basicConfig(
 
 app = Flask(__name__)
 
+# Registra tutti i blueprint (moduli di route)
 app.register_blueprint(parse_bp)
 app.register_blueprint(split_bp)
 app.register_blueprint(images_bp)
@@ -30,6 +34,8 @@ app.register_blueprint(crop_bp, url_prefix='/crop')
 app.register_blueprint(correct_markdown_bp)
 app.register_blueprint(split_markdown_bp)
 app.register_blueprint(dots_mocr_bp)
+app.register_blueprint(manifest_bp)
+
 
 if __name__ == '__main__':
     logging.info("Avvio DocParser Flask Server sulla porta 5000...")
