@@ -2,9 +2,24 @@ from flask import Blueprint, request, jsonify
 import os
 import logging
 # Importiamo la funzione e l'utilità per convertire in dizionario
+import re
 from unstructured.partition.pdf import partition_pdf
 
 parse_bp = Blueprint('parse', __name__)
+
+_STATBLOCK_FIELD_PATTERNS = (
+    r'\bCA\s*[-+]?\d',
+    r'\bDV\s*[-+]?\d',
+    r'\b[Pp][Ff]\s*\d',
+    r'\bMV\s*\d',
+)
+
+
+def _is_monster_statblock_title(text):
+    """3+ delle abbreviazioni classiche di scheda mostro D&D (CA, DV, pf/PF,
+    MV, ognuna seguita da un numero) nello stesso blocco di testo - segnale
+    sicuro perche' un titolo vero non contiene mai questa combinazione."""
+    return sum(1 for pat in _STATBLOCK_FIELD_PATTERNS if re.search(pat, text)) >= 3
 
 @parse_bp.route('/parse_from_path', methods=['POST'])
 def parse_from_path():
@@ -74,6 +89,21 @@ def parse_from_path():
 
                 # Gestione dei Titoli (li trasformiamo in header Markdown per lo split in n8n)
                 if category == "Title":
+                    if _is_monster_statblock_title(text):
+                        # Il nome del mostro seguito dall'intera riga di
+                        # statistiche (es. "Troll di Gargantua: CA 4; DV
+                        # 5+1**; pf248; MV 72m. (24m.); N° ATT. 3; ...") a
+                        # volte viene classificato "Title" da Unstructured/
+                        # YOLOX (probabilmente per il grassetto usato per il
+                        # nome del mostro, che YOLOX associa all'intero
+                        # blocco), diventando un capitolo a se stante invece
+                        # di restare testo normale (verificato: "La Prova dei
+                        # Signori Della Guerra", "Troll di Gargantua" ed
+                        # "Elementale della Terra"). Segnale: 3+ delle
+                        # abbreviazioni classiche delle schede mostro D&D
+                        # (CA, DV, pf/PF, MV) presenti nello stesso blocco -
+                        # combinazione che non ricorre mai in un titolo vero.
+                        continue
                     if text.strip().isdigit():
                         # Numero isolato classificato come Title: quasi certamente un
                         # numero di pagina/footer mal riconosciuto da Unstructured/YOLOX,
