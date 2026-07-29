@@ -357,7 +357,7 @@ def order_blocks_with_zones(manifest, zones):
     return [b for _, b in assigned] + unassigned
 
 
-def _is_decorative_garbage_heading(text, min_len=8, max_alpha_ratio=0.3):
+def _is_decorative_garbage_heading(text, min_len=8, max_alpha_ratio=0.3, check_short=False):
     """Un heading (font grande, quindi classificato heading_h2/h3 solo per
     dimensione) il cui testo e' quasi tutto simboli/punteggiatura e' quasi
     certamente una firma/fregio decorativo letto con un font senza mappatura
@@ -369,12 +369,26 @@ def _is_decorative_garbage_heading(text, min_len=8, max_alpha_ratio=0.3):
     16.2pt Bold Italic, ~16% di caratteri alfabetici sui ~38 totali - ben
     sotto la soglia di qualunque titolo vero, anche brevissimo.
     Soglia scelta larga (8 caratteri minimo, 30% alfabetici) per non
-    rischiare falsi positivi su titoli brevi legittimi."""
+    rischiare falsi positivi su titoli brevi legittimi.
+
+    check_short=True attiva un controllo aggiuntivo per frammenti PIU'
+    corti di min_len fatti quasi solo di punteggiatura/simboli (es. ",,",
+    ". .", "-----", "I 1111" - verificato: "Guida degli Avventurieri alla
+    Costa della Spada", ~10 capitoli fantasma generati da frammenti di
+    questo tipo, troppo corti per il controllo sopra). Passato SOLO dal
+    chiamante heading_h2 (l'unico che spezza i capitoli in split-capitoli)
+    - MAI da heading_h3, dove frammenti corti possono essere valori veri di
+    scheda (es. "9 m", "+12" in una statblock D&D, verificato su SRD/Chiavi:
+    applicare questo controllo anche li' cancellava dati reali)."""
     stripped = text.strip()
-    if len(stripped) < min_len:
+    if not stripped:
         return False
     alpha_count = sum(1 for c in stripped if c.isalpha())
-    return (alpha_count / len(stripped)) < max_alpha_ratio
+    if len(stripped) >= min_len:
+        return (alpha_count / len(stripped)) < max_alpha_ratio
+    if check_short:
+        return alpha_count <= 1
+    return False
 
 
 def _filter_margin_garbage_fragments(blocks):
@@ -428,7 +442,7 @@ def render_markdown(manifest, zones=None):
         # come paragrafo "orfano" senza marcatore
         single_line = text.replace("\n", " ")
         if t == "heading_h2":
-            if _is_decorative_garbage_heading(single_line):
+            if _is_decorative_garbage_heading(single_line, check_short=True):
                 continue
             parts.append(f"## {single_line}")
         elif t == "heading_h3":
