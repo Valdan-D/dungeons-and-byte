@@ -1,0 +1,13 @@
+[Unit]
+Description=Surya layout detection gateway (Dungeons & Byte zone recognition)
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt
+ExecStart=/opt/surya-prod/bin/python3 /opt/surya_gateway.py
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
