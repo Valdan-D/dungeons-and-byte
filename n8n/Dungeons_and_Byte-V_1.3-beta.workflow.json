@@ -7,7 +7,7 @@
       "typeVersion": 1,
       "position": [
         -672,
-        -7416
+        -7368
       ],
       "id": "010f2ab1-2257-4abf-9522-a53bb79a078a",
       "name": "trigger manuale"
@@ -20,7 +20,7 @@
       "typeVersion": 2,
       "position": [
         -224,
-        -7416
+        -7368
       ],
       "id": "44fe3338-b45f-48b3-b794-c6ebb2979476",
       "name": "Code in JavaScript1"
@@ -38,7 +38,7 @@
       "typeVersion": 4.4,
       "position": [
         0,
-        -7416
+        -7368
       ],
       "id": "a190fc9a-4577-480e-b139-1bfb853b28a5",
       "name": "crea-cartelle"
@@ -50,8 +50,8 @@
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 3,
       "position": [
-        1344,
-        -7632
+        1568,
+        -7152
       ],
       "id": "5b5de70e-b55b-4c5b-b118-1e325f669ad5",
       "name": "Loop Over Items"
@@ -65,8 +65,8 @@
       "type": "n8n-nodes-base.splitOut",
       "typeVersion": 1,
       "position": [
-        1120,
-        -7632
+        1344,
+        -7152
       ],
       "id": "847db67b-8ac9-4a02-be66-b20827f7d9bb",
       "name": "Split Out"
@@ -97,8 +97,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        2240,
-        -8064
+        2464,
+        -7224
       ],
       "id": "a27a3997-51dc-45f9-8072-22ef7cdd9d4b",
       "name": "render_page"
@@ -125,8 +125,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        896,
-        -7632
+        1120,
+        -7152
       ],
       "id": "2bb22bb5-427d-4715-a135-3a78049ce5ad",
       "name": "Splittta"
@@ -138,8 +138,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2688,
-        -7968
+        2912,
+        -7128
       ],
       "id": "ed40da81-fa64-454f-b01c-3afa1bdbc50f",
       "name": "verifica-immagini"
@@ -153,7 +153,7 @@
       "typeVersion": 1.1,
       "position": [
         -448,
-        -7416
+        -7368
       ],
       "id": "e2ff903d-dfe1-464b-9481-56115ac808ef",
       "name": "Read/Write Files from Disk1"
@@ -165,8 +165,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2016,
-        -8064
+        2240,
+        -7224
       ],
       "id": "31a31f6f-0739-4ba2-9b8c-93ba6be09af1",
       "name": "promt_per_render"
@@ -179,8 +179,8 @@
       "type": "n8n-nodes-base.splitOut",
       "typeVersion": 1,
       "position": [
-        2912,
-        -7968
+        3136,
+        -7128
       ],
       "id": "90e1ee02-450b-40fe-ad77-ac441d030575",
       "name": "splitta-immagini"
@@ -227,8 +227,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        3136,
-        -7968
+        3360,
+        -7128
       ],
       "id": "0f2efcab-d982-4ebc-a226-65dd0222f80b",
       "name": "estrae-immagini"
@@ -242,8 +242,8 @@
       "type": "n8n-nodes-base.readWriteFile",
       "typeVersion": 1.1,
       "position": [
-        3360,
-        -7968
+        3584,
+        -7128
       ],
       "id": "b38d0400-e7b3-407f-bf7e-3eccbbc931c3",
       "name": "salva-immagini",
@@ -258,8 +258,8 @@
       "type": "n8n-nodes-base.readWriteFile",
       "typeVersion": 1.1,
       "position": [
-        3360,
-        -8160
+        3584,
+        -7320
       ],
       "id": "ab25ca83-0aa6-49d9-a608-5b3e9fd76e2c",
       "name": "salva-pagine-markdown"
@@ -275,8 +275,8 @@
       "type": "n8n-nodes-base.convertToFile",
       "typeVersion": 1.1,
       "position": [
-        3136,
-        -8160
+        3360,
+        -7320
       ],
       "id": "efe4275d-72be-41d6-a556-9a61fe111561",
       "name": "pagine-da-binario-a-markdown"
@@ -288,8 +288,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2016,
-        -7704
+        2240,
+        -8064
       ],
       "id": "5e3523e6-2362-4bbf-8cec-89638e8386f7",
       "name": "filtro-e-assemblaggio-md"
@@ -301,8 +301,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2464,
-        -7800
+        2912,
+        -8160
       ],
       "id": "575a136c-95a8-46eb-b97d-241e9991da79",
       "name": "salva-markdown-totale"
@@ -312,8 +312,8 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3.2,
       "position": [
-        3584,
-        -7968
+        3808,
+        -7128
       ],
       "id": "fe1f1e8b-35ee-4df3-b25e-5b446ba8aa94",
       "name": "Merge"
@@ -325,8 +325,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1792,
-        -7704
+        2016,
+        -8064
       ],
       "id": "57f797a6-cdbe-40fd-aba4-656e7291b69a",
       "name": "divisione immagini-markdown",
@@ -339,8 +339,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2464,
-        -8160
+        2688,
+        -7320
       ],
       "id": "5bf33b4d-c274-4b25-bd29-a005b1bb7846",
       "name": "pulizia-markdown"
@@ -352,8 +352,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2240,
-        -7800
+        2688,
+        -8160
       ],
       "id": "aa32c572-aa02-4fc5-934f-31133eef30a9",
       "name": "Aggregate"
@@ -367,19 +367,19 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2688,
-        -8160
+        2912,
+        -7320
       ]
     },
     {
       "parameters": {
-        "jsCode": "const fs = require('fs');\nconst items = $input.all();\nconst projectName = items[0]?.json?.projectName || $('Split Out').first().json.projectName;\n\nconst capitoliDir = `/shared/projects/${projectName}/capitoli`;\n\n// Pulisci la directory prima di ogni run per evitare accumulo di vecchi file\nif (fs.existsSync(capitoliDir)) {\n  for (const f of fs.readdirSync(capitoliDir)) {\n    fs.unlinkSync(`${capitoliDir}/${f}`);\n  }\n}\nfs.mkdirSync(capitoliDir, { recursive: true });\n\n// Concatena le pagine rimuovendo il wrapper \"# Progetto - Pagina N\"\nconst texts = items.map(item => {\n  let content = item.json.finalContent || '';\n  content = content.replace(/^# .+? - Pagina \\d+\\s*\\n/, '');\n  return content.trim();\n});\n\nlet fullText = texts.join('\\n\\n<!-- pb -->\\n\\n');\n\n// === PULIZIA GIUNZIONI DI PAGINA ===\n// 1. Parola sillabata a fine pagina\nfullText = fullText.replace(/(\\w)-\\n\\n<!-- pb -->\\n\\n(\\w)/g, '$1$2');\n// 2. Frase che continua oltre il salto pagina\nfullText = fullText.replace(/([^.!?:;»\")\\]\\n])\\n\\n<!-- pb -->\\n\\n([a-zà-ü])/g, '$1 $2');\n// 3. Rimuove i marcatori rimasti\nfullText = fullText.replace(/\\n*<!-- pb -->\\n*/g, '\\n\\n');\n// 4. Normalizza spazi\nfullText = fullText.replace(/\\n{3,}/g, '\\n\\n');\n\n// === SPLIT PER CAPITOLI (heading ## livello 2) ===\nconst parts = fullText.split(/(?=^## )/m).filter(p => p.trim());\n\nif (parts.length === 0) {\n  const filename = `${capitoliDir}/01-completo.md`;\n  fs.writeFileSync(filename, fullText, 'utf8');\n  return [{ json: { salvati: 1, files: [filename], projectName } }];\n}\n\nconst savedFiles = [];\nfor (let i = 0; i < parts.length; i++) {\n  const content = parts[i].trim();\n  const firstLine = content.split('\\n')[0].trim();\n  const title = firstLine.replace(/^#+\\s*/, '').trim();\n  const slug = title\n    .toLowerCase()\n    .replace(/[àáâä]/g, 'a').replace(/[èéêë]/g, 'e')\n    .replace(/[ìíîï]/g, 'i').replace(/[òóôö]/g, 'o').replace(/[ùúûü]/g, 'u')\n    .replace(/[^a-z0-9.]+/g, '-').replace(/^-|-$/g, '').slice(0, 60);\n  const filename = `${capitoliDir}/${String(i + 1).padStart(2, '0')}-${slug}.md`;\n  fs.writeFileSync(filename, content, 'utf8');\n  savedFiles.push({ index: i + 1, title, filename });\n}\n\nreturn [{ json: { salvati: savedFiles.length, files: savedFiles, projectName } }];"
+        "jsCode": "const fs = require('fs');\nconst items = $input.all();\nconst projectName = items[0]?.json?.projectName || $('Split Out').first().json.projectName;\n\nconst capitoliDir = `/shared/projects/${projectName}/capitoli`;\n\n// Pulisci la directory prima di ogni run per evitare accumulo di vecchi file\nif (fs.existsSync(capitoliDir)) {\n  for (const f of fs.readdirSync(capitoliDir)) {\n    fs.unlinkSync(`${capitoliDir}/${f}`);\n  }\n}\nfs.mkdirSync(capitoliDir, { recursive: true });\n\n// Concatena le pagine rimuovendo il wrapper \"# Progetto - Pagina N\"\nconst texts = items.map(item => {\n  let content = item.json.finalContent || '';\n  content = content.replace(/^# .+? - Pagina \\d+\\s*\\n/, '');\n  return content.trim();\n});\n\nlet fullText = texts.join('\\n\\n<!-- pb -->\\n\\n');\n\n// === PULIZIA GIUNZIONI DI PAGINA ===\n// 1. Parola sillabata a fine pagina\nfullText = fullText.replace(/(\\w)-\\n\\n<!-- pb -->\\n\\n(\\w)/g, '$1$2');\n// 2. Frase che continua oltre il salto pagina\nfullText = fullText.replace(/([^.!?:;»\")\\]\\n])\\n\\n<!-- pb -->\\n\\n([a-zà-ü])/g, '$1 $2');\n// 3. Rimuove i marcatori rimasti\nfullText = fullText.replace(/\\n*<!-- pb -->\\n*/g, '\\n\\n');\n// 4. Normalizza spazi\nfullText = fullText.replace(/\\n{3,}/g, '\\n\\n');\n\n// === SPLIT PER CAPITOLI (heading ## livello 2) ===\nconst parts = fullText.split(/(?=^## )/m).filter(p => p.trim());\n\nif (parts.length === 0) {\n  const filename = `${capitoliDir}/01-completo.md`;\n  fs.writeFileSync(filename, fullText, 'utf8');\n  return [{ json: { salvati: 1, files: [filename], projectName } }];\n}\n\nconst savedFiles = [];\nfor (let i = 0; i < parts.length; i++) {\n  const content = parts[i].trim();\n  const firstLine = content.split('\\n')[0].trim();\n  let title = firstLine.replace(/^#+\\s*/, '').trim();\n  if (/^!\\[.*\\]\\(.*\\)/.test(firstLine) || !title) {\n    title = 'COPERTINA';\n  }\n  const slug = title\n    .toLowerCase()\n    .replace(/[àáâä]/g, 'a').replace(/[èéêë]/g, 'e')\n    .replace(/[ìíîï]/g, 'i').replace(/[òóôö]/g, 'o').replace(/[ùúûü]/g, 'u')\n    .replace(/[^a-z0-9.]+/g, '-').replace(/^-|-$/g, '').slice(0, 60);\n  const filename = `${capitoliDir}/${String(i + 1).padStart(2, '0')}-${slug}.md`;\n  fs.writeFileSync(filename, content, 'utf8');\n  savedFiles.push({ index: i + 1, title, filename });\n}\n\nreturn [{ json: { salvati: savedFiles.length, files: savedFiles, projectName } }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2240,
-        -7608
+        2688,
+        -7968
       ],
       "id": "9992b9e0-a309-4223-98e9-1ecd2d731520",
       "name": "split-capitoli"
@@ -395,7 +395,7 @@
       "typeVersion": 2,
       "position": [
         224,
-        -7416
+        -7368
       ]
     },
     {
@@ -408,8 +408,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2912,
-        -8160
+        3136,
+        -7320
       ]
     },
     {
@@ -421,8 +421,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1568,
-        -7704
+        1792,
+        -8064
       ]
     },
     {
@@ -449,7 +449,7 @@
       "typeVersion": 2,
       "position": [
         448,
-        -7416
+        -7368
       ],
       "id": "dd2f8824-1a7b-4bc7-8a83-3a8f85d95427"
     },
@@ -482,7 +482,7 @@
       "typeVersion": 2,
       "position": [
         672,
-        -7416
+        -7368
       ],
       "id": "8710d336-a35a-4d16-ab9f-6368ddfb96e4"
     },
@@ -495,7 +495,7 @@
       "typeVersion": 2,
       "position": [
         -672,
-        -6880
+        -6904
       ],
       "id": "bdce4314-15e0-4c08-878b-c9d2263da3ac",
       "retryOnFail": true,
@@ -511,8 +511,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2240,
-        -7176
+        2464,
+        -7704
       ],
       "id": "ce328c14-8a1a-4b43-8311-80ae302e6475"
     },
@@ -525,8 +525,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2464,
-        -7104
+        2688,
+        -7632
       ],
       "id": "988f149b-6745-4394-b6f0-a0380ff99c77"
     },
@@ -538,8 +538,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1568,
-        -8064
+        1792,
+        -7224
       ],
       "id": "c1a1a111-1111-4111-8111-111111111111",
       "name": "verifica-pagina-esistente"
@@ -571,8 +571,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        1792,
-        -8064
+        2016,
+        -7224
       ],
       "id": "c2b2b222-2222-4222-8222-222222222222",
       "name": "pagina-gia-fatta?"
@@ -584,8 +584,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1120,
-        -7104
+        1344,
+        -7704
       ],
       "id": "a1000001-0001-4001-8001-000000000001",
       "name": "conta-pagine-native"
@@ -597,8 +597,8 @@
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 3,
       "position": [
-        1344,
-        -7104
+        1568,
+        -7704
       ],
       "id": "a1000002-0002-4002-8002-000000000002",
       "name": "Loop Over Items (nativo)"
@@ -611,8 +611,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1568,
-        -7176
+        1792,
+        -7776
       ],
       "id": "a1000003-0003-4003-8003-000000000003",
       "name": "verifica-pagina-esistente-nativo"
@@ -644,8 +644,8 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        1792,
-        -7176
+        2016,
+        -7704
       ],
       "id": "a1000004-0004-4004-8004-000000000004",
       "name": "pagina-gia-fatta-nativo?"
@@ -657,8 +657,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2016,
-        -7176
+        2240,
+        -7704
       ],
       "id": "a1000005-0005-4005-8005-000000000005",
       "name": "estrai-pagina-nativa"
@@ -671,8 +671,8 @@
       },
       "type": "n8n-nodes-base.stickyNote",
       "position": [
-        826,
-        -7932
+        1050,
+        -7452
       ],
       "typeVersion": 1,
       "id": "a1000006-0006-4006-8006-000000000006",
@@ -685,8 +685,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2130,
-        -7704
+        2464,
+        -8064
       ],
       "id": "290033dd-103d-4b7a-bc0b-97b6dcb70a18",
       "name": "applica-fix-manuali"
@@ -702,8 +702,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        780,
-        -7480
+        1120,
+        -7704
       ],
       "id": "edd3c94b-cb91-4f43-ac5b-a544f7a0b9e0",
       "name": "assicura-gpu-nativo"
@@ -719,8 +719,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        980,
-        -7200
+        896,
+        -7152
       ],
       "id": "f107ebb6-4444-49a8-96c4-ee922471aafb",
       "name": "assicura-gpu-scansione"
