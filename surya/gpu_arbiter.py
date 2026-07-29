@@ -55,6 +55,28 @@ def ensure_surya():
     return jsonify({"action": "started", "service": SURYA_SERVICE, "ready": ready})
 
 
+@app.route("/restart/surya", methods=["POST"])
+def restart_surya():
+    """Riavvio INCONDIZIONATO (non solo se non attivo), da chiamare
+    periodicamente durante l'elaborazione di libri lunghi dal ramo nativo.
+    Necessario perche' llama-server (build b8759) accumula memoria ad ogni
+    richiesta /layout elaborata - non un'allocazione fissa ma un leak
+    progressivo (verificato: da 828MB dopo un riavvio pulito a 7.5GB dopo
+    ~89 pagine, stessa causa dell'incidente precedente ma non risolta
+    abbassando solo ctx-size/parallel, che ha solo alzato la soglia di
+    partenza). Riavviare periodicamente (ogni ~15 pagine, gestito dal
+    workflow n8n) mantiene la memoria sotto controllo per l'intera durata
+    di un libro lungo, invece di aspettare che ricada di nuovo in swap
+    thrashing."""
+    was_active = is_active(SURYA_SERVICE)
+    if was_active:
+        logging.info("Riavvio periodico surya-gateway (contenimento memoria)...")
+        subprocess.run(["systemctl", "stop", SURYA_SERVICE], check=True)
+    subprocess.run(["systemctl", "start", SURYA_SERVICE], check=True)
+    ready = wait_surya_ready(timeout=60)
+    return jsonify({"action": "restarted", "service": SURYA_SERVICE, "ready": ready})
+
+
 @app.route("/ensure/ollama", methods=["POST"])
 def ensure_ollama():
     """Chiamato dal ramo scansione (OCR) prima di usare Ollama per la
