@@ -2,6 +2,8 @@ import os
 os.environ["SURYA_INFERENCE_BACKEND"] = "llamacpp"
 os.environ["LLAMA_CPP_BINARY"] = "/opt/llama-vulkan/llama-b8759/llama-server"
 os.environ["GGML_VK_VISIBLE_DEVICES"] = "0"
+os.environ["SURYA_INFERENCE_PARALLEL"] = "1"  # una sola richiesta alla volta (gateway sequenziale, mai batch)
+os.environ["SURYA_INFERENCE_CTX_SIZE"] = "16384"  # minimo di libreria, invece di 8x12288=98304 (causava OOM/swap thrashing sull_host, 15GB RAM totali)
 
 import base64
 import io
