@@ -146,7 +146,7 @@
     },
     {
       "parameters": {
-        "fileSelector": "=/shared/projects/pool/La Prova dei Signori Della Guerra - livello Conpanion - dnd - 1984.pdf",
+        "fileSelector": "=/shared/projects/pool/Lo Specchio di Skarda - Livello Expert - dnd - 1987.pdf",
         "options": {}
       },
       "type": "n8n-nodes-base.readWriteFile",
@@ -579,7 +579,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const { execSync } = require('child_process');\nconst item = $input.first();\nconst projectName = item.json.projectName;\nconst pdfPath = item.json.pdfPath || `/shared/projects/pool/${projectName}.pdf`;\nconst out = execSync(`/bin/pdfinfo \"${pdfPath}\"`).toString();\nconst match = out.match(/Pages:\\s+(\\d+)/);\nconst nPages = match ? parseInt(match[1], 10) : 0;\nconst pages = [];\nfor (let p = 1; p <= nPages; p++) {\n  pages.push({ json: { projectName, pdfPath, page: p } });\n}\nreturn pages;\n"
+        "jsCode": "const { execSync } = require('child_process');\nconst projectName = $('Code in JavaScript1').item.json.projectName;\nconst pdfPath = $('Code in JavaScript1').item.json.pdfPath;\nconst out = execSync(`/bin/pdfinfo \"${pdfPath}\"`).toString();\nconst match = out.match(/Pages:\\s+(\\d+)/);\nconst nPages = match ? parseInt(match[1], 10) : 0;\nconst pages = [];\nfor (let p = 1; p <= nPages; p++) {\n  pages.push({ json: { projectName, pdfPath, page: p } });\n}\nreturn pages;\n"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
