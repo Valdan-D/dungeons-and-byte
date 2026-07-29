@@ -1,0 +1,13 @@
+[Unit]
+Description=GPU arbiter (Dungeons & Byte - ensures Surya vs Ollama don't contend for VRAM)
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt
+ExecStart=/opt/surya-prod/bin/python3 /opt/gpu_arbiter.py
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

@@ -690,6 +690,40 @@
       ],
       "id": "290033dd-103d-4b7a-bc0b-97b6dcb70a18",
       "name": "applica-fix-manuali"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://SURYA_GATEWAY_HOST:8101/ensure/surya",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        780,
+        -7480
+      ],
+      "id": "edd3c94b-cb91-4f43-ac5b-a544f7a0b9e0",
+      "name": "assicura-gpu-nativo"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://SURYA_GATEWAY_HOST:8101/ensure/ollama",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        980,
+        -7200
+      ],
+      "id": "f107ebb6-4444-49a8-96c4-ee922471aafb",
+      "name": "assicura-gpu-scansione"
     }
   ],
   "connections": {
@@ -984,14 +1018,14 @@
       "main": [
         [
           {
-            "node": "conta-pagine-native",
+            "node": "assicura-gpu-nativo",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Splittta",
+            "node": "assicura-gpu-scansione",
             "type": "main",
             "index": 0
           }
@@ -1128,6 +1162,28 @@
           },
           {
             "node": "split-capitoli",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "assicura-gpu-nativo": {
+      "main": [
+        [
+          {
+            "node": "conta-pagine-native",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "assicura-gpu-scansione": {
+      "main": [
+        [
+          {
+            "node": "Splittta",
             "type": "main",
             "index": 0
           }
