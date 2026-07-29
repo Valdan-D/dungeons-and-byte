@@ -43,6 +43,30 @@ _FUNC_END = re.compile(
 DICE_RE = re.compile(r'^\d*d\d+$', re.I)
 ROW_START_RE = re.compile(r'^\d+([–\-]\d+)?$')
 
+# Una voce di indice (sommario) e' spesso impaginata con lo stesso font
+# grande dei titoli veri di sezione (per farla risaltare nella pagina
+# "Indice"), ma il contenuto e' "Titolo capitolo" + linea di puntini/bullet
+# (dot leader) + numero di pagina - mai un titolo vero in questi manuali.
+# Senza questa esclusione ogni riga dell'indice diventa un heading_h2, e
+# siccome split-capitoli spezza un nuovo capitolo ad ogni heading_h2, il
+# libro si ritrova con capitoli fantasma fatti solo dalla riga di indice
+# (es. "La Tana del drago ••.. 3" come titolo di capitolo a se stante),
+# e il capitolo successivo (che contiene anche la riga di indice PIU' il
+# vero inizio del contenuto, es. "### INTRODUZIONE") parte con del rumore
+# prima del contenuto reale. Verificato: "La Ricerca della Spada
+# D'Argento" pag.2, indice con 4 voci, 2 delle quali (dot leader di
+# almeno 3 caratteri consecutivi punto/bullet prima del numero) erano gia'
+# classificate heading_h2 e generavano i capitoli 04 e 05 spuri.
+_TOC_DOT_LEADER_RE = re.compile(r'(?:[.•·]\s?){3,}\d+')
+# Due (o piu') voci di indice possono finire fuse sulla stessa riga
+# fisica (es. "Il villaggio di Torlynn \u2022 4 La fortezza di Barrik \u2022 . 5"),
+# ciascuna con un dot-leader troppo corto (1-2 caratteri) per il pattern
+# sopra. Segnale alternativo: 2+ occorrenze di 'punto/bullet immediatamente
+# seguito da un numero di 1-3 cifre' sulla STESSA riga - una prosa normale
+# non ripete mai questo pattern esatto due volte, mentre una riga di indice
+# con piu' voci si'.
+_TOC_PAGE_REF_RE = re.compile(r'[.•·]\s?\d{1,3}\b')
+
 # Vocabolario fisso delle etichette di campo nelle schede statistiche dei
 # mostri D&D 5e - standard del sistema di gioco, non specifico di un libro.
 # Usato per escludere queste righe dalla classificazione heading (vedi
@@ -125,7 +149,19 @@ def page_body_color(text_dict):
     return max(colors.items(), key=lambda kv: kv[1])[0]
 
 
-def page_font_thresholds(text_dict):
+def page_font_thresholds(text_dict, h2_mult=1.7):
+    """h2_mult e' parametrizzabile perche' alcuni libri (verificato: "La
+    Ricerca della Spada D'Argento", reprint 1992) impaginano i titoli di
+    sezione veri a un rapporto dimensione/corpo-testo (~1.55-1.65x) piu'
+    basso del default 1.7x calibrato sugli altri manuali (Chiavi, SRD,
+    Skarda) - restano quindi heading_h3 e non spezzano mai un capitolo in
+    split-capitoli (che spezza solo su heading_h2). Non abbassabile
+    globalmente: libri come Chiavi hanno decine di SOTTO-titoli (es. nomi
+    di stanze) allo stesso rapporto dimensione, che diventerebbero capitoli
+    fantasma se il default cambiasse per tutti. Va quindi ricalibrato per
+    singolo progetto (vedi _calibrate_h2_mult in routes/manifest.py) solo
+    quando il libro specifico mostra il sintomo (pochi heading_h2 reali
+    nonostante molte pagine)."""
     all_sizes = []
     for b in text_dict["blocks"]:
         if b.get("type") != 0:
@@ -136,7 +172,7 @@ def page_font_thresholds(text_dict):
                 if t and len(t) > 2:
                     all_sizes.append(round(span["size"], 1))
     body_size = median(all_sizes) if all_sizes else 10.0
-    return body_size, body_size * 1.7, body_size * 1.3
+    return body_size, body_size * h2_mult, body_size * 1.3
 
 
 def classify_line_font(text, max_size, bold, h2_thresh, h3_thresh, color_dist=0, color_thresh=20):
@@ -176,6 +212,8 @@ def classify_line_font(text, max_size, bold, h2_thresh, h3_thresh, color_dist=0,
         len(text) == 1
         or (len(text) == 2 and text.isalpha())
         or text in _KNOWN_ORNAMENT_TEXTS
+        or bool(_TOC_DOT_LEADER_RE.search(text))
+        or len(_TOC_PAGE_REF_RE.findall(text)) >= 1
     )
     # Le etichette dei campi nelle schede statistiche dei mostri D&D 5e (es.
     # "Classe Armatura 17 (armatura naturale)", "Sfida 1 (200 PE)") sono
@@ -294,7 +332,7 @@ def ocr_fix_replacement_chars(page, groups, lang="ita", x_padding=2.0, y_padding
     return out
 
 
-def extract_line_groups(text_dict, h2_thresh, h3_thresh, body_color=None, page=None, table_bboxes=None):
+def extract_line_groups(text_dict, h2_thresh, h3_thresh, body_color=None, page=None, table_bboxes=None, strict_table_bboxes=None):
     """
     Cammina riga per riga dentro ogni blocco PyMuPDF, classifica ogni riga
     singolarmente, poi fonde righe fisiche CONSECUTIVE dello stesso tipo
@@ -437,7 +475,29 @@ def extract_line_groups(text_dict, h2_thresh, h3_thresh, body_color=None, page=N
             # e 104 di SRD, righe di nomi arma perse interamente col
             # controllo attivo ovunque).
             same_column = True
-            if g["font_type"] == "paragraph":
+            strict_block = False
+            if strict_table_bboxes:
+                for tb in strict_table_bboxes:
+                    for bx in (prev["bbox"], g["bbox"]):
+                        cx, cy = bbox_center(bx)
+                        if tb[0] - 3 <= cx <= tb[2] + 3 and tb[1] - 3 <= cy <= tb[3] + 3:
+                            strict_block = True
+                            break
+                    if strict_block:
+                        break
+            if strict_block:
+                # Tabella etichetta:valore (variante 4): il contenuto e'
+                # gia' catturato in modo indipendente da raw_lines (non
+                # dipende dai gruppi fusi), quindi qui non c'e' il rischio
+                # di "sparizione" che limita il blocco generico sotto -
+                # bloccare sempre evita che un nome di mostro (spesso
+                # classificato "paragraph", non "bold", per font non
+                # riconosciuto come grassetto) si fonda con la prima riga
+                # della tabella e venga scartato insieme ad essa (verificato:
+                # "La Ricerca della Spada D'Argento" pag.17, "COLEOTTERO
+                # BAVOSO" fuso con "CA: Dadi Vita: ...").
+                same_column = False
+            elif g["font_type"] == "paragraph":
                 near_table = False
                 if table_bboxes:
                     for tb in table_bboxes:
@@ -835,6 +895,82 @@ def build_grid_table(run, x_tol=GRID_X_TOL):
     return {"bbox": [round(v, 1) for v in (left, top, right, bottom)], "grid": grid, "source": "grid_text"}
 
 
+def _find_label_value_runs_in_subset(raw_lines, min_rows, y_tol, max_row_gap):
+    physical_rows = group_physical_rows(raw_lines, y_tol=y_tol)
+
+    candidates = []
+    for y, items in physical_rows:
+        if len(items) < 2:
+            continue
+        label = items[0]
+        value_items = items[1:]
+        if x_overlap(label["bbox"], value_items[0]["bbox"]):
+            continue
+        label_text = label["text"].strip()
+        if not label_text.endswith(":") or len(label_text) > 30:
+            continue
+        value_text = " ".join(v["text"] for v in value_items).strip()
+        if not value_text:
+            continue
+        candidates.append((y, label_text, value_text, items))
+
+    runs = []
+    cur = []
+    prev_y = None
+    for y, label_text, value_text, items in candidates:
+        if cur and (y - prev_y) > max_row_gap:
+            if len(cur) >= min_rows:
+                runs.append(cur)
+            cur = []
+        cur.append((y, label_text, value_text, items))
+        prev_y = y
+    if len(cur) >= min_rows:
+        runs.append(cur)
+    return runs
+
+
+def find_label_value_table_runs(raw_lines, W, min_rows=5, y_tol=4, max_row_gap=25):
+    """Individua il formato "scheda mostro" classico dei moduli D&D
+    Basic/Expert (anni '80-'90): una colonna di etichette (es. "CA:",
+    "Dadi Vita:", "Movimento:") ognuna con un valore associato alla stessa
+    altezza Y in una seconda colonna piu' a destra. Le etichette (bold) e i
+    valori (paragraph) hanno TIPO diverso, quindi la fusione paragrafi
+    esistente non li unisce mai tra loro riga per riga - restano due
+    sequenze consecutive dello stesso tipo (tutte le etichette fuse
+    insieme, tutti i valori fusi insieme) e finiscono per essere renderizzate
+    come due blocchi separati interi invece che interlacciate (verificato:
+    "La Ricerca della Spada D'Argento" pag.17, schede mostro - "CA: Dadi
+    Vita: Movimento: ..." tutto insieme, poi "7 18(6) ..." tutto insieme).
+
+    Il segnale che distingue una riga etichetta:valore da un normale
+    accostamento casuale di testo e' che la prima cella (piu' a sinistra)
+    termina sempre con ":" - non richiesto dal rilevatore a griglia
+    esistente (variante 3, find_grid_table_row_runs), che anzi ESCLUDE
+    esplicitamente il testo terminante in ':' (is_cell_like) assumendo che
+    sia prosa normale. Soglia min_rows=5 (non 2-3): le schede mostro di
+    questo genere di libri hanno tipicamente ~11 campi fissi, un run corto
+    e' quasi certamente una coincidenza (es. 2 righe non correlate che
+    capitano l'una accanto all'altra), non una vera scheda.
+
+    Analisi separata per meta' sinistra/destra pagina, stesso motivo di
+    find_grid_table_row_runs (un layout a 2 colonne di pagina puo' avere
+    una riga dell'altra meta' alla stessa altezza Y)."""
+    left = [g for g in raw_lines if (g["bbox"][0] + g["bbox"][2]) / 2 < W / 2]
+    right = [g for g in raw_lines if (g["bbox"][0] + g["bbox"][2]) / 2 >= W / 2]
+    return (_find_label_value_runs_in_subset(left, min_rows, y_tol, max_row_gap) +
+            _find_label_value_runs_in_subset(right, min_rows, y_tol, max_row_gap))
+
+
+def build_label_value_table(run):
+    grid = [[label, value] for _, label, value, _ in run]
+    all_bboxes = [it["bbox"] for _, _, _, items in run for it in items]
+    left = min(b[0] for b in all_bboxes)
+    top = min(b[1] for b in all_bboxes)
+    right = max(b[2] for b in all_bboxes)
+    bottom = max(b[3] for b in all_bboxes)
+    return {"bbox": [round(v, 1) for v in (left, top, right, bottom)], "grid": grid, "source": "label_value"}
+
+
 def bbox_overlap_ratio(a, b):
     """Frazione dell'area di a coperta dalla sovrapposizione con b."""
     ix0, iy0 = max(a[0], b[0]), max(a[1], b[1])
@@ -874,6 +1010,13 @@ def detect_tables(drawings, raw_lines, W):
             continue
         tables.append(candidate)
 
+    # tabelle etichetta:valore (variante 4) - schede mostro D&D Basic/Expert
+    for run in find_label_value_table_runs(raw_lines, W):
+        candidate = build_label_value_table(run)
+        if any(bbox_overlap_ratio(candidate["bbox"], t["bbox"]) > 0.5 for t in tables):
+            continue
+        tables.append(candidate)
+
     return tables
 
 
@@ -881,7 +1024,7 @@ def detect_tables(drawings, raw_lines, W):
 # classificazione pagina
 # ---------------------------------------------------------------------------
 
-def classify_page(doc, page, hf_index=None, hf_threshold=2):
+def classify_page(doc, page, hf_index=None, hf_threshold=2, h2_mult=1.7):
     W, H = page.rect.width, page.rect.height
     page_rect = (0.0, 0.0, W, H)
     margin_top = H * 0.08
@@ -1013,10 +1156,11 @@ def classify_page(doc, page, hf_index=None, hf_threshold=2):
             decorative = True
         ir["decorative"] = decorative
 
-    body_size, h2_thresh, h3_thresh = page_font_thresholds(text_dict)
+    body_size, h2_thresh, h3_thresh = page_font_thresholds(text_dict, h2_mult=h2_mult)
     body_color = page_body_color(text_dict)
 
-    line_groups = extract_line_groups(text_dict, h2_thresh, h3_thresh, body_color=body_color, page=page, table_bboxes=[t["bbox"] for t in tables])
+    strict_table_bboxes = [t["bbox"] for t in tables if t.get("source") == "label_value"]
+    line_groups = extract_line_groups(text_dict, h2_thresh, h3_thresh, body_color=body_color, page=page, table_bboxes=[t["bbox"] for t in tables], strict_table_bboxes=strict_table_bboxes)
 
     # scarta i gruppi di testo gia' consumati da una tabella rilevata, per
     # evitare che lo stesso contenuto compaia due volte nel manifest
