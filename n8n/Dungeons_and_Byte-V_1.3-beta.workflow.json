@@ -7,7 +7,7 @@
       "typeVersion": 1,
       "position": [
         -672,
-        -7368
+        -7376
       ],
       "id": "010f2ab1-2257-4abf-9522-a53bb79a078a",
       "name": "trigger manuale"
@@ -20,7 +20,7 @@
       "typeVersion": 2,
       "position": [
         -224,
-        -7368
+        -7376
       ],
       "id": "44fe3338-b45f-48b3-b794-c6ebb2979476",
       "name": "Code in JavaScript1"
@@ -38,7 +38,7 @@
       "typeVersion": 4.4,
       "position": [
         0,
-        -7368
+        -7376
       ],
       "id": "a190fc9a-4577-480e-b139-1bfb853b28a5",
       "name": "crea-cartelle"
@@ -98,7 +98,7 @@
       "typeVersion": 4.4,
       "position": [
         2464,
-        -7224
+        -7232
       ],
       "id": "a27a3997-51dc-45f9-8072-22ef7cdd9d4b",
       "name": "render_page"
@@ -139,21 +139,21 @@
       "typeVersion": 2,
       "position": [
         2912,
-        -7128
+        -7136
       ],
       "id": "ed40da81-fa64-454f-b01c-3afa1bdbc50f",
       "name": "verifica-immagini"
     },
     {
       "parameters": {
-        "fileSelector": "=/shared/projects/pool/Lo Specchio di Skarda - Livello Expert - dnd - 1987.pdf",
+        "fileSelector": "=/shared/projects/pool/Guida degli avventurieri alla Costa della Spada - Manuale - dnd - 5.pdf",
         "options": {}
       },
       "type": "n8n-nodes-base.readWriteFile",
       "typeVersion": 1.1,
       "position": [
         -448,
-        -7368
+        -7376
       ],
       "id": "e2ff903d-dfe1-464b-9481-56115ac808ef",
       "name": "Read/Write Files from Disk1"
@@ -166,7 +166,7 @@
       "typeVersion": 2,
       "position": [
         2240,
-        -7224
+        -7232
       ],
       "id": "31a31f6f-0739-4ba2-9b8c-93ba6be09af1",
       "name": "promt_per_render"
@@ -180,7 +180,7 @@
       "typeVersion": 1,
       "position": [
         3136,
-        -7128
+        -7136
       ],
       "id": "90e1ee02-450b-40fe-ad77-ac441d030575",
       "name": "splitta-immagini"
@@ -228,7 +228,7 @@
       "typeVersion": 4.4,
       "position": [
         3360,
-        -7128
+        -7136
       ],
       "id": "0f2efcab-d982-4ebc-a226-65dd0222f80b",
       "name": "estrae-immagini"
@@ -243,7 +243,7 @@
       "typeVersion": 1.1,
       "position": [
         3584,
-        -7128
+        -7136
       ],
       "id": "b38d0400-e7b3-407f-bf7e-3eccbbc931c3",
       "name": "salva-immagini",
@@ -259,7 +259,7 @@
       "typeVersion": 1.1,
       "position": [
         3584,
-        -7320
+        -7328
       ],
       "id": "ab25ca83-0aa6-49d9-a608-5b3e9fd76e2c",
       "name": "salva-pagine-markdown"
@@ -276,7 +276,7 @@
       "typeVersion": 1.1,
       "position": [
         3360,
-        -7320
+        -7328
       ],
       "id": "efe4275d-72be-41d6-a556-9a61fe111561",
       "name": "pagine-da-binario-a-markdown"
@@ -313,7 +313,7 @@
       "typeVersion": 3.2,
       "position": [
         3808,
-        -7128
+        -7136
       ],
       "id": "fe1f1e8b-35ee-4df3-b25e-5b446ba8aa94",
       "name": "Merge"
@@ -340,7 +340,7 @@
       "typeVersion": 2,
       "position": [
         2688,
-        -7320
+        -7328
       ],
       "id": "5bf33b4d-c274-4b25-bd29-a005b1bb7846",
       "name": "pulizia-markdown"
@@ -368,7 +368,7 @@
       "typeVersion": 2,
       "position": [
         2912,
-        -7320
+        -7328
       ]
     },
     {
@@ -395,7 +395,7 @@
       "typeVersion": 2,
       "position": [
         224,
-        -7368
+        -7376
       ]
     },
     {
@@ -409,7 +409,7 @@
       "typeVersion": 2,
       "position": [
         3136,
-        -7320
+        -7328
       ]
     },
     {
@@ -433,8 +433,8 @@
       },
       "type": "n8n-nodes-base.stickyNote",
       "position": [
-        1552,
-        -7568
+        1920,
+        -8304
       ],
       "typeVersion": 1,
       "id": "a2505da5-29bd-4c21-b22a-1a7194ad43a6",
@@ -449,7 +449,7 @@
       "typeVersion": 2,
       "position": [
         448,
-        -7368
+        -7376
       ],
       "id": "dd2f8824-1a7b-4bc7-8a83-3a8f85d95427"
     },
@@ -482,7 +482,7 @@
       "typeVersion": 2,
       "position": [
         672,
-        -7368
+        -7376
       ],
       "id": "8710d336-a35a-4d16-ab9f-6368ddfb96e4"
     },
@@ -495,7 +495,7 @@
       "typeVersion": 2,
       "position": [
         -672,
-        -6904
+        -6912
       ],
       "id": "bdce4314-15e0-4c08-878b-c9d2263da3ac",
       "retryOnFail": true,
@@ -512,7 +512,7 @@
       "typeVersion": 2,
       "position": [
         2464,
-        -7704
+        -7712
       ],
       "id": "ce328c14-8a1a-4b43-8311-80ae302e6475"
     },
@@ -539,7 +539,7 @@
       "typeVersion": 2,
       "position": [
         1792,
-        -7224
+        -7232
       ],
       "id": "c1a1a111-1111-4111-8111-111111111111",
       "name": "verifica-pagina-esistente"
@@ -572,7 +572,7 @@
       "typeVersion": 2,
       "position": [
         2016,
-        -7224
+        -7232
       ],
       "id": "c2b2b222-2222-4222-8222-222222222222",
       "name": "pagina-gia-fatta?"
@@ -585,7 +585,7 @@
       "typeVersion": 2,
       "position": [
         1344,
-        -7704
+        -7712
       ],
       "id": "a1000001-0001-4001-8001-000000000001",
       "name": "conta-pagine-native"
@@ -598,7 +598,7 @@
       "typeVersion": 3,
       "position": [
         1568,
-        -7704
+        -7712
       ],
       "id": "a1000002-0002-4002-8002-000000000002",
       "name": "Loop Over Items (nativo)"
@@ -645,7 +645,7 @@
       "typeVersion": 2,
       "position": [
         2016,
-        -7704
+        -7712
       ],
       "id": "a1000004-0004-4004-8004-000000000004",
       "name": "pagina-gia-fatta-nativo?"
@@ -658,7 +658,7 @@
       "typeVersion": 2,
       "position": [
         2240,
-        -7704
+        -7712
       ],
       "id": "a1000005-0005-4005-8005-000000000005",
       "name": "estrai-pagina-nativa"
@@ -671,8 +671,8 @@
       },
       "type": "n8n-nodes-base.stickyNote",
       "position": [
-        1050,
-        -7452
+        912,
+        -8336
       ],
       "typeVersion": 1,
       "id": "a1000006-0006-4006-8006-000000000006",
@@ -703,7 +703,7 @@
       "typeVersion": 4.4,
       "position": [
         1120,
-        -7704
+        -7712
       ],
       "id": "edd3c94b-cb91-4f43-ac5b-a544f7a0b9e0",
       "name": "assicura-gpu-nativo"
@@ -724,6 +724,20 @@
       ],
       "id": "f107ebb6-4444-49a8-96c4-ee922471aafb",
       "name": "assicura-gpu-scansione"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const { execSync } = require('child_process');\nconst item = $input.item;\nconst page = item.json.page;\n\n// Riavvio periodico di surya-gateway ogni 15 pagine: llama-server (build\n// b8759) accumula memoria ad ogni richiesta /layout elaborata (verificato:\n// da 828MB dopo un riavvio pulito a 7.5GB dopo ~89 pagine, causa di due\n// incidenti di swap thrashing sull'host in questa stessa giornata) - un\n// riavvio periodico mantiene la memoria sotto controllo per l'intera\n// durata di un libro lungo invece di aspettare che ricada in thrashing.\nif (page % 15 === 0) {\n  try {\n    execSync('curl -s -m 3 -X POST http://SURYA_GATEWAY_HOST:8101/restart/surya');\n  } catch (e) {\n    // Se il riavvio fallisce (rete, timeout) si prosegue comunque - una\n    // singola pagina lenta e' preferibile a bloccare l'intero libro per un\n    // problema di rete sul gateway.\n  }\n}\n\nreturn item;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2130,
+        -7680
+      ],
+      "id": "eaaea943-5a10-451a-968d-5b7d5151bdf0",
+      "name": "verifica-riavvio-periodico-gpu"
     }
   ],
   "connections": {
@@ -1134,7 +1148,7 @@
         ],
         [
           {
-            "node": "estrai-pagina-nativa",
+            "node": "verifica-riavvio-periodico-gpu",
             "type": "main",
             "index": 0
           }
@@ -1184,6 +1198,17 @@
         [
           {
             "node": "Splittta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "verifica-riavvio-periodico-gpu": {
+      "main": [
+        [
+          {
+            "node": "estrai-pagina-nativa",
             "type": "main",
             "index": 0
           }
