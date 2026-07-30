@@ -652,10 +652,17 @@
     },
     {
       "parameters": {
-        "jsCode": "const fs = require('fs');\nconst { execSync } = require('child_process');\n\nconst item = $input.item;\nconst projectName = item.json.projectName;\nconst pdfPath = item.json.pdfPath;\nconst page = item.json.page;\nconst mdDir = `/shared/projects/${projectName}/markdown`;\nconst imagesDir = `/shared/projects/${projectName}/images`;\nfs.mkdirSync(mdDir, { recursive: true });\nfs.mkdirSync(imagesDir, { recursive: true });\n\nconst bodyPath = `/tmp/manifest_page_req_${projectName.replace(/[^a-zA-Z0-9_-]/g, '_')}_${page}_${Date.now()}.json`;\nfs.writeFileSync(bodyPath, JSON.stringify({ pdfPath, projectName, page, useSuryaLayout: true }), 'utf8');\n\nlet stdout;\ntry {\n  stdout = execSync(\n    `curl -sS --max-time 300 -X POST http://DOCPARSER_HOST:5000/manifest_page_from_path -H \"Content-Type: application/json\" --data-binary @${bodyPath} -w '\\n%{http_code}'`,\n    { maxBuffer: 1024 * 1024 * 100 }\n  ).toString();\n} finally {\n  fs.unlinkSync(bodyPath);\n}\n\nconst lastNewline = stdout.lastIndexOf('\\n');\nconst bodyText = stdout.slice(0, lastNewline);\nconst statusCode = parseInt(stdout.slice(lastNewline + 1), 10);\n\nif (statusCode !== 200) {\n  throw new Error(`docparser manifest_page_from_path errore ${statusCode}: ${bodyText}`);\n}\n\nconst result = JSON.parse(bodyText);\nreturn {\n  json: {\n    page: result.page,\n    markdown: result.markdown,\n    images: result.images || [],\n    projectName,\n    fileName: result.fileName,\n    filePath: result.filePath,\n  }\n};\n"
+        "method": "POST",
+        "url": "http://DOCPARSER_HOST:5000/manifest_page_from_path",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"pdfPath\": \"{{ $json.pdfPath }}\",\n  \"projectName\": \"{{ $json.projectName }}\",\n  \"page\": {{ $json.page }},\n  \"useSuryaLayout\": true\n}",
+        "options": {
+          "timeout": 600000
+        }
       },
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
       "position": [
         2464,
         -7704
