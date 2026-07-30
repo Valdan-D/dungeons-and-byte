@@ -7,7 +7,7 @@
       "typeVersion": 1,
       "position": [
         -672,
-        -7376
+        -7368
       ],
       "id": "010f2ab1-2257-4abf-9522-a53bb79a078a",
       "name": "trigger manuale"
@@ -20,7 +20,7 @@
       "typeVersion": 2,
       "position": [
         -224,
-        -7376
+        -7368
       ],
       "id": "44fe3338-b45f-48b3-b794-c6ebb2979476",
       "name": "Code in JavaScript1"
@@ -38,7 +38,7 @@
       "typeVersion": 4.4,
       "position": [
         0,
-        -7376
+        -7368
       ],
       "id": "a190fc9a-4577-480e-b139-1bfb853b28a5",
       "name": "crea-cartelle"
@@ -98,7 +98,7 @@
       "typeVersion": 4.4,
       "position": [
         2464,
-        -7232
+        -7224
       ],
       "id": "a27a3997-51dc-45f9-8072-22ef7cdd9d4b",
       "name": "render_page"
@@ -139,21 +139,21 @@
       "typeVersion": 2,
       "position": [
         2912,
-        -7136
+        -7128
       ],
       "id": "ed40da81-fa64-454f-b01c-3afa1bdbc50f",
       "name": "verifica-immagini"
     },
     {
       "parameters": {
-        "fileSelector": "=/shared/projects/pool/Guida degli avventurieri alla Costa della Spada - Manuale - dnd - 5.pdf",
+        "fileSelector": "=/shared/projects/pool/Manuale Del Giocatore - manuale - 5.5 - dnd.pdf",
         "options": {}
       },
       "type": "n8n-nodes-base.readWriteFile",
       "typeVersion": 1.1,
       "position": [
         -448,
-        -7376
+        -7368
       ],
       "id": "e2ff903d-dfe1-464b-9481-56115ac808ef",
       "name": "Read/Write Files from Disk1"
@@ -166,7 +166,7 @@
       "typeVersion": 2,
       "position": [
         2240,
-        -7232
+        -7224
       ],
       "id": "31a31f6f-0739-4ba2-9b8c-93ba6be09af1",
       "name": "promt_per_render"
@@ -180,7 +180,7 @@
       "typeVersion": 1,
       "position": [
         3136,
-        -7136
+        -7128
       ],
       "id": "90e1ee02-450b-40fe-ad77-ac441d030575",
       "name": "splitta-immagini"
@@ -228,7 +228,7 @@
       "typeVersion": 4.4,
       "position": [
         3360,
-        -7136
+        -7128
       ],
       "id": "0f2efcab-d982-4ebc-a226-65dd0222f80b",
       "name": "estrae-immagini"
@@ -243,7 +243,7 @@
       "typeVersion": 1.1,
       "position": [
         3584,
-        -7136
+        -7128
       ],
       "id": "b38d0400-e7b3-407f-bf7e-3eccbbc931c3",
       "name": "salva-immagini",
@@ -259,7 +259,7 @@
       "typeVersion": 1.1,
       "position": [
         3584,
-        -7328
+        -7320
       ],
       "id": "ab25ca83-0aa6-49d9-a608-5b3e9fd76e2c",
       "name": "salva-pagine-markdown"
@@ -276,7 +276,7 @@
       "typeVersion": 1.1,
       "position": [
         3360,
-        -7328
+        -7320
       ],
       "id": "efe4275d-72be-41d6-a556-9a61fe111561",
       "name": "pagine-da-binario-a-markdown"
@@ -313,7 +313,7 @@
       "typeVersion": 3.2,
       "position": [
         3808,
-        -7136
+        -7128
       ],
       "id": "fe1f1e8b-35ee-4df3-b25e-5b446ba8aa94",
       "name": "Merge"
@@ -340,7 +340,7 @@
       "typeVersion": 2,
       "position": [
         2688,
-        -7328
+        -7320
       ],
       "id": "5bf33b4d-c274-4b25-bd29-a005b1bb7846",
       "name": "pulizia-markdown"
@@ -368,7 +368,7 @@
       "typeVersion": 2,
       "position": [
         2912,
-        -7328
+        -7320
       ]
     },
     {
@@ -395,7 +395,7 @@
       "typeVersion": 2,
       "position": [
         224,
-        -7376
+        -7368
       ]
     },
     {
@@ -409,7 +409,7 @@
       "typeVersion": 2,
       "position": [
         3136,
-        -7328
+        -7320
       ]
     },
     {
@@ -442,14 +442,14 @@
     },
     {
       "parameters": {
-        "jsCode": "const { execSync } = require('child_process');\nconst item = $input.first();\nconst projectName = item.json.projectName;\n// pdfPath può andare perso nel nodo crea-cartelle, lo ricostruiamo da projectName\nconst pdfPath = item.json.pdfPath || `/shared/projects/pool/${projectName}.pdf`;\n\nlet charCount = 0;\ntry {\n  const text = execSync(`/bin/pdftotext -f 1 -l 3 \"${pdfPath}\" -`, { timeout: 15000 }).toString();\n  charCount = text.replace(/\\s/g, '').length;\n} catch(e) { charCount = 0; }\n\nconst isNative = charCount > 300;\nreturn [{ json: { ...item.json, projectName, pdfPath, isNative, charCount } }];\n"
+        "jsCode": "const { execSync } = require('child_process');\nconst item = $input.first();\nconst projectName = item.json.projectName;\n// pdfPath può andare perso nel nodo crea-cartelle, lo ricostruiamo da projectName\nconst pdfPath = item.json.pdfPath || `/shared/projects/pool/${projectName}.pdf`;\n\nlet charCount = 0;\ntry {\n  const text = execSync(`/bin/pdftotext -f 1 -l 15 \"${pdfPath}\" -`, { timeout: 15000 }).toString();\n  charCount = text.replace(/\\s/g, '').length;\n} catch(e) { charCount = 0; }\n\nconst isNative = charCount > 300;\nreturn [{ json: { ...item.json, projectName, pdfPath, isNative, charCount } }];\n"
       },
       "name": "rileva-tipo-pdf",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
         448,
-        -7376
+        -7368
       ],
       "id": "dd2f8824-1a7b-4bc7-8a83-3a8f85d95427"
     },
@@ -482,7 +482,7 @@
       "typeVersion": 2,
       "position": [
         672,
-        -7376
+        -7368
       ],
       "id": "8710d336-a35a-4d16-ab9f-6368ddfb96e4"
     },
@@ -495,7 +495,7 @@
       "typeVersion": 2,
       "position": [
         -672,
-        -6912
+        -6904
       ],
       "id": "bdce4314-15e0-4c08-878b-c9d2263da3ac",
       "retryOnFail": true,
@@ -511,8 +511,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2464,
-        -7712
+        2688,
+        -7704
       ],
       "id": "ce328c14-8a1a-4b43-8311-80ae302e6475"
     },
@@ -525,7 +525,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2688,
+        2912,
         -7632
       ],
       "id": "988f149b-6745-4394-b6f0-a0380ff99c77"
@@ -539,7 +539,7 @@
       "typeVersion": 2,
       "position": [
         1792,
-        -7232
+        -7224
       ],
       "id": "c1a1a111-1111-4111-8111-111111111111",
       "name": "verifica-pagina-esistente"
@@ -572,7 +572,7 @@
       "typeVersion": 2,
       "position": [
         2016,
-        -7232
+        -7224
       ],
       "id": "c2b2b222-2222-4222-8222-222222222222",
       "name": "pagina-gia-fatta?"
@@ -585,7 +585,7 @@
       "typeVersion": 2,
       "position": [
         1344,
-        -7712
+        -7704
       ],
       "id": "a1000001-0001-4001-8001-000000000001",
       "name": "conta-pagine-native"
@@ -598,7 +598,7 @@
       "typeVersion": 3,
       "position": [
         1568,
-        -7712
+        -7704
       ],
       "id": "a1000002-0002-4002-8002-000000000002",
       "name": "Loop Over Items (nativo)"
@@ -645,7 +645,7 @@
       "typeVersion": 2,
       "position": [
         2016,
-        -7712
+        -7704
       ],
       "id": "a1000004-0004-4004-8004-000000000004",
       "name": "pagina-gia-fatta-nativo?"
@@ -657,8 +657,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2240,
-        -7712
+        2464,
+        -7704
       ],
       "id": "a1000005-0005-4005-8005-000000000005",
       "name": "estrai-pagina-nativa"
@@ -703,7 +703,7 @@
       "typeVersion": 4.4,
       "position": [
         1120,
-        -7712
+        -7704
       ],
       "id": "edd3c94b-cb91-4f43-ac5b-a544f7a0b9e0",
       "name": "assicura-gpu-nativo"
@@ -733,8 +733,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2130,
-        -7680
+        2240,
+        -7704
       ],
       "id": "eaaea943-5a10-451a-968d-5b7d5151bdf0",
       "name": "verifica-riavvio-periodico-gpu"
