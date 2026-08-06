@@ -24,6 +24,15 @@ state (`PaddleOCRVL` layout model, loaded once at gateway startup).
 
 ## Endpoints
 
+**`POST /setup`**
+Creates the project folder structure under `/shared/projects/<projectName>/`
+(`pages/`, `images/`, `json/`, `markdown/`). Reimplements the old DocParser
+`/setup` endpoint so v2.0 has no dependency on that service at all.
+```json
+Request:  { "projectName": "My Manual - dnd - 2024" }
+Response: { "status": "success", "projectName": "My Manual - dnd - 2024", "paths": ["…/pages", "…/images", "…/json", "…/markdown"] }
+```
+
 **`POST /parse_page`**
 Renders one PDF page and runs it through the full PaddleOCR-VL pipeline.
 Retries at increasing `temperature` (`0 → 0.3 → 0.6 → 0.9`) if the model hits
@@ -62,9 +71,10 @@ Response: { "status": "ok", "ready": true }
   without it, the default multi-slot KV-cache allocation reserves several
   GB for parallel requests that never arrive (the gateway only ever sends
   one request at a time). Same root cause and fix already used for Surya.
-- The container's own `dots-ocr.service`/`ocr-gateway.service` (if present)
-  should have their auto-start disabled — they compete for the same GPU and
-  will grab it before the VLM on container boot otherwise.
+- If this container previously ran something else with GPU auto-start
+  (e.g. this one started life as a `dots-ocr` OCR experiment container,
+  hence the `paddleocr-vl` rename), remove or disable that service entirely
+  — it will compete for the GPU and can grab it before the VLM on boot.
 - `/shared/projects` must be mounted on this container (`pct set <vmid>
   -mp0 /mnt/shared/projects,mp=/shared/projects`) — it isn't by default on a
   container that wasn't already part of the pipeline.

@@ -28,7 +28,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "http://DOCPARSER_HOST:5000/setup",
+        "url": "http://PADDLEOCR_GATEWAY_HOST:8091/setup",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={\n  \"projectName\": \"{{ $json.projectName }}\"\n}",
