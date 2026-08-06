@@ -14,7 +14,7 @@
     },
     {
       "parameters": {
-        "jsCode": "return [{ json: { projectName: \"Manuale Del Giocatore - manuale - 5.5 - dnd\", pdfPath: \"/shared/projects/pool/Manuale Del Giocatore - manuale - 5.5 - dnd.pdf\" } }];"
+        "jsCode": "return [{ json: { projectName: \"My Manual - dnd - 2024\", pdfPath: \"/shared/projects/pool/My Manual - dnd - 2024.pdf\" } }];"
       },
       "name": "imposta-progetto",
       "type": "n8n-nodes-base.code",
