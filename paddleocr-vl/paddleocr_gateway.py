@@ -29,6 +29,24 @@ def health():
     return jsonify({"status": "ok"})
 
 
+@app.route("/setup", methods=["POST"])
+def setup_project():
+    # Stessa logica di docparser (routes/setup.py) - riprodotta qui per non
+    # dipendere piu' dal container 109, che serve altri workflow n8n non
+    # legati a questa pipeline.
+    data = request.get_json()
+    project_name = data.get("projectName")
+    if not project_name:
+        return jsonify({"error": "projectName mancante"}), 400
+
+    base = f"/shared/projects/{project_name}"
+    paths = [f"{base}/pages", f"{base}/images", f"{base}/json", f"{base}/markdown"]
+    for path in paths:
+        os.makedirs(path, exist_ok=True)
+
+    return jsonify({"status": "success", "projectName": project_name, "paths": paths})
+
+
 @app.route("/restart_vlm", methods=["POST"])
 def restart_vlm():
     # Riavvio incondizionato del motore VLM (llama-server) per contenere il

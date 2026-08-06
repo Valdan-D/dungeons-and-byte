@@ -37,7 +37,7 @@ scanned PDFs go through the identical code path. Kept intentionally simple
 ```mermaid
 graph TD
     A[PDF Manuale] --> B[n8n - Dungeons_and_Byte-V_2.0]
-    B --> C[crea-cartelle - DocParser /setup, riusato]
+    B --> C[crea-cartelle - paddleocr-gateway /setup]
     C --> D[conta-pagine - pdfinfo]
     D --> E[Loop Over Items]
     E -->|pagina gia' fatta| E
@@ -74,9 +74,17 @@ favor of staying fully self-hosted. That choice had a real engineering cost:
   the n8n execution stops (by design — a failed page should be visible, not
   silently skipped).
 - **GPU contention**: the T1000 8GB is shared with other containers
-  (Ollama, dots.ocr). `dots-ocr.service`/`ocr-gateway.service` auto-start was
-  disabled on the PaddleOCR-VL container after it twice grabbed the GPU
-  ahead of the VLM at container boot.
+  (Ollama, and formerly dots.ocr on the same box). The old
+  `dots-ocr.service`/`ocr-gateway.service` grabbed the GPU ahead of the VLM
+  at container boot twice before being removed entirely — the container
+  (renamed `paddleocr-vl`, ex `dots-ocr`) is now dedicated to this pipeline
+  only.
+
+**Fully self-contained**: v2.0 no longer depends on the v1.x `DocParser`
+service at all — the one endpoint it still used (`/setup`, project folder
+creation) was reimplemented directly in the gateway (`paddleocr-vl/`), so
+the whole pipeline now runs off a single container plus n8n for
+orchestration.
 
 **Known limitations, not yet solved:**
 - Pages with a complex map+box layout (several room-description boxes
@@ -85,12 +93,12 @@ favor of staying fully self-hosted. That choice had a real engineering cost:
   the old fixed 2-column geometric split, but not fully solved.
 - During a high-temperature retry, a monster/NPC stat block can occasionally
   be misclassified as a chapter heading instead of staying as body text
-  (found once across ~10 books) — same failure class the v1.x
+  (found once across 15 books) — same failure class the v1.x
   `_is_monster_statblock_title` heuristic targeted, not yet re-added here
   since it's rare enough to fix manually via `manual_fixes.json` if it
   recurs.
 
-**Validated on 10 manuals** — a mix of native and scanned PDFs, spanning
+**Validated on 15 manuals** — a mix of native and scanned PDFs, spanning
 original publication years from the early 1980s to 2024, ranging from
 short single-session adventures to 400+ page core rulebooks.
 
@@ -196,9 +204,9 @@ via Settings → Import Workflow.
 
 | Placeholder | Description |
 |---|---|
-| `DOCPARSER_HOST` | IP or hostname of the DocParser container (port 5000) — v1.x and `crea-cartelle` in v2.0 |
+| `DOCPARSER_HOST` | IP or hostname of the DocParser container (port 5000) — v1.x only |
 | `OLLAMA_HOST` | IP or hostname of the Ollama container (port 11434) — v1.x only |
-| `PADDLEOCR_GATEWAY_HOST` | IP or hostname of the PaddleOCR-VL gateway container (port 8091) — v2.0 only |
+| `PADDLEOCR_GATEWAY_HOST` | IP or hostname of the PaddleOCR-VL gateway container (port 8091) — v2.0, all nodes |
 
 ## Environment variables (DocParser)
 
