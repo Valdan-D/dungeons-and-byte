@@ -90,8 +90,9 @@ favor of staying fully self-hosted. That choice had a real engineering cost:
   since it's rare enough to fix manually via `manual_fixes.json` if it
   recurs.
 
-**Validated on 10 manuals** — native and scanned, 1982 to 2024, 16 to 405
-pages (the CC-licensed SRD 5.2.1 among them).
+**Validated on 10 manuals** — a mix of native and scanned PDFs, spanning
+original publication years from the early 1980s to 2024, ranging from
+short single-session adventures to 400+ page core rulebooks.
 
 Code: [`paddleocr-vl/`](./paddleocr-vl) (gateway + systemd units). Workflow:
 [`n8n/Dungeons_and_Byte-V_2.0.workflow.json`](./n8n/Dungeons_and_Byte-V_2.0.workflow.json).
