@@ -1,0 +1,13 @@
+[Unit]
+Description=PaddleOCR-VL recognition backend (llama-server, Vulkan GPU)
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/paddleocr-vl
+ExecStart=/opt/llamacpp-paddleocr/vulkan/llama-b10242/llama-server -m /opt/paddleocr-vl/model.gguf --mmproj /opt/paddleocr-vl/mmproj.gguf --port 8090 --host 0.0.0.0 --temp 0 -ngl 99 --parallel 1 --ctx-size 16384
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
