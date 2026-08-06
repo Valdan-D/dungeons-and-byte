@@ -15,7 +15,95 @@ Transforms PDF documents into structured Markdown, ready for RAG ingestion or fu
 - Applies manual corrections from `qa/solutions.json` before final assembly
 - Creates a structured project folder for each manual
 
-## Architecture
+## v2.0 — Single-pipeline architecture (PaddleOCR-VL)
+
+The v1.x architecture (below) grew a hard fork between native and scanned PDFs
+(different engines, different bugs, different fixes) plus ~20 accumulated
+one-off heuristics in `manifest_engine.py`/`parse.py` for edge cases found
+one book at a time (decorative garbage headings, monster stat blocks read as
+titles, TOC dot-leaders, page numbers read as headings, running headers,
+font-glyph ambiguity, h2 calibration per book, ...). Every fix reduced one
+symptom without touching the underlying issue: font-size/geometry heuristics
+were being asked to make judgment calls that require actual semantic
+understanding of the page.
+
+v2.0 replaces the whole native/scan split and the heuristic pile with a
+**single self-hosted vision-language model** ([PaddleOCR-VL-1.6](https://huggingface.co/PaddlePaddle/PaddleOCR-VL-1.6),
+~0.9B params) that does layout detection + OCR + table/structure recognition
+in one pass, always working from the rendered page **image** — so native and
+scanned PDFs go through the identical code path. Kept intentionally simple
+(KISS): one model, one gateway, one n8n loop, no per-book special cases.
+
+```mermaid
+graph TD
+    A[PDF Manuale] --> B[n8n - Dungeons_and_Byte-V_2.0]
+    B --> C[crea-cartelle - DocParser /setup, riusato]
+    C --> D[conta-pagine - pdfinfo]
+    D --> E[Loop Over Items]
+    E -->|pagina gia' fatta| E
+    E -->|nuova| F[verifica-riavvio-periodico-vlm - ogni 15 pagine]
+    F --> G[paddleocr-gateway :8091 /parse_page]
+    G --> H[render pagina a immagine - PyMuPDF]
+    H --> I[PaddleOCR-VL via llama-server :8090]
+    I --> J[markdown + immagini salvate sul progetto]
+    J --> E
+    E -->|loop completo| K[filtro-e-assemblaggio-md-v2]
+    K --> L[applica-fix-manuali - riusato]
+    L --> M[Markdown + capitoli strutturati]
+```
+
+**Deliberately kept local, not cloud.** A cloud LLM (tested with
+`groq/llama-3.3-70b-versatile`) produced excellent results, but the free-tier
+throughput (~30-40 pages/day) and the ongoing per-token cost were rejected in
+favor of staying fully self-hosted. That choice had a real engineering cost:
+
+- **Memory leak in `llama-server`**: not just an oversized initial allocation
+  (fixed with `--parallel 1 --ctx-size 16384`, same fix already used for
+  Surya) but genuine growth *during* use (~700MB clean → 5-7GB after a few
+  hundred pages), enough to push the whole Proxmox host into swap thrashing.
+  Mitigated with an unconditional restart every 15 pages
+  (`verifica-riavvio-periodico-vlm`, fire-and-forget), same pattern already
+  proven for Surya's own leak.
+- **Deterministic decoding dead-end**: a rare, page-specific error
+  (`"model produced output that does not match the expected peg-native
+  format"`) where the model's constrained-grammar output gets stuck at
+  `temperature=0`, more likely on pages with long continuous text blocks
+  (dense multi-column pages). Mitigated with tiered retries at increasing
+  temperature (`0 → 0.3 → 0.6 → 0.9`) — improves the odds but is
+  probabilistic, not guaranteed; if all tiers fail the request errors out and
+  the n8n execution stops (by design — a failed page should be visible, not
+  silently skipped).
+- **GPU contention**: the T1000 8GB is shared with other containers
+  (Ollama, dots.ocr). `dots-ocr.service`/`ocr-gateway.service` auto-start was
+  disabled on the PaddleOCR-VL container after it twice grabbed the GPU
+  ahead of the VLM at container boot.
+
+**Known limitations, not yet solved:**
+- Pages with a complex map+box layout (several room-description boxes
+  scattered around a dungeon map) can still mix text from different rooms —
+  the exact case that originally motivated adding Surya to v1.3. Better than
+  the old fixed 2-column geometric split, but not fully solved.
+- During a high-temperature retry, a monster/NPC stat block can occasionally
+  be misclassified as a chapter heading instead of staying as body text
+  (found once across ~10 books) — same failure class the v1.x
+  `_is_monster_statblock_title` heuristic targeted, not yet re-added here
+  since it's rare enough to fix manually via `manual_fixes.json` if it
+  recurs.
+
+**Validated on 10 manuals** — native and scanned, 1982 to 2024, 16 to 405
+pages: Guida degli Avventurieri alla Costa della Spada, La Prova dei Signori
+Della Guerra, Lo Specchio di Skarda, In Cerca Di Avventura, IT_SRD_CC_v5.2.1,
+Le Chiavi Del Caveau Aureo, La Ricerca della Spada D'Argento, Il Drago del
+Picco Gugliaghiacciata, La Miniera Perduta di Phandelver, La Rocca delle
+Terre di Confine, L'Occhio di Traldar, Marinai Annegati, Regolamento Starter
+Set, Waterdeep - Il Dungeon del Mago Folle, Manuale Del Giocatore.
+
+Code: [`paddleocr-vl/`](./paddleocr-vl) (gateway + systemd units). Workflow:
+[`n8n/Dungeons_and_Byte-V_2.0.workflow.json`](./n8n/Dungeons_and_Byte-V_2.0.workflow.json).
+
+---
+
+## v1.x Architecture (legacy)
 
 ```mermaid
 graph TD
@@ -103,15 +191,18 @@ Solutions accumulate across runs — once added, they apply to all future projec
 
 ## n8n workflow
 
-The orchestration workflow is exported at `n8n/Dungeons_and_Byte.workflow.json`.
-Import it directly into n8n via Settings → Import Workflow.
+The current (v2.0) workflow is exported at
+`n8n/Dungeons_and_Byte-V_2.0.workflow.json`. Legacy exports (v1.x, native/scan
+split) are kept in the same folder for reference. Import directly into n8n
+via Settings → Import Workflow.
 
 **After import, update these placeholders in the node HTTP request URLs:**
 
 | Placeholder | Description |
 |---|---|
-| `DOCPARSER_HOST` | IP or hostname of the DocParser container (port 5000) |
-| `OLLAMA_HOST` | IP or hostname of the Ollama container (port 11434) |
+| `DOCPARSER_HOST` | IP or hostname of the DocParser container (port 5000) — v1.x and `crea-cartelle` in v2.0 |
+| `OLLAMA_HOST` | IP or hostname of the Ollama container (port 11434) — v1.x only |
+| `PADDLEOCR_GATEWAY_HOST` | IP or hostname of the PaddleOCR-VL gateway container (port 8091) — v2.0 only |
 
 ## Environment variables (DocParser)
 

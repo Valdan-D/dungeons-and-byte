@@ -1,0 +1,13 @@
+[Unit]
+Description=PaddleOCR-VL gateway (Dungeons & Byte v2.0 - render pagina + parsing + salvataggio)
+After=network.target paddleocr-vlm.service
+
+[Service]
+Type=simple
+WorkingDirectory=/opt
+ExecStart=/opt/paddleocr-env/bin/python3 /opt/paddleocr_gateway.py
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

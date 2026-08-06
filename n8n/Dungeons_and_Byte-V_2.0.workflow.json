@@ -1,0 +1,378 @@
+{
+  "name": "Dungeons_and_Byte-V_2.0",
+  "nodes": [
+    {
+      "parameters": {},
+      "name": "trigger manuale",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -672,
+        0
+      ],
+      "id": "991ac39a-ec6b-4f2b-8879-abb77267a131"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { projectName: \"Manuale Del Giocatore - manuale - 5.5 - dnd\", pdfPath: \"/shared/projects/pool/Manuale Del Giocatore - manuale - 5.5 - dnd.pdf\" } }];"
+      },
+      "name": "imposta-progetto",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -448,
+        0
+      ],
+      "id": "db56d861-51cd-41b6-b561-4a84562cc271"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://DOCPARSER_HOST:5000/setup",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"projectName\": \"{{ $json.projectName }}\"\n}",
+        "options": {}
+      },
+      "name": "crea-cartelle",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -224,
+        0
+      ],
+      "id": "0b087286-4e13-4139-ae95-6da651859fb7"
+    },
+    {
+      "parameters": {
+        "jsCode": "const { execSync } = require('child_process');\nconst projectName = $('imposta-progetto').item.json.projectName;\nconst pdfPath = $('imposta-progetto').item.json.pdfPath;\nconst out = execSync(`/bin/pdfinfo \"${pdfPath}\"`).toString();\nconst match = out.match(/Pages:\\s+(\\d+)/);\nconst nPages = match ? parseInt(match[1], 10) : 0;\nconst pages = [];\nfor (let p = 1; p <= nPages; p++) {\n  pages.push({ json: { projectName, pdfPath, page: p } });\n}\nreturn pages;\n"
+      },
+      "name": "conta-pagine",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "48859af0-0bec-4e6a-83c9-bd8fff687735"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "name": "Loop Over Items",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        224,
+        0
+      ],
+      "id": "7bf70295-2318-4b67-8b2a-1b634951e3d3"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const fs = require('fs');\nconst item = $input.item;\nconst projectName = item.json.projectName;\nconst page = item.json.page;\nconst filePath = `/shared/projects/${projectName}/markdown/page_${page}.md`;\nconst exists = fs.existsSync(filePath);\nitem.json.paginaGiaFatta = exists;\nif (exists) {\n  item.json.fileName = `page_${page}.md`;\n  item.json.filePath = filePath;\n  item.json.markdown = fs.readFileSync(filePath, 'utf8');\n}\nreturn item;\n"
+      },
+      "name": "verifica-pagina-esistente",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        -80
+      ],
+      "id": "cb40afb1-816f-4bb8-b10c-481cdd26c1fe"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "cond1",
+              "leftValue": "={{ $json.paginaGiaFatta }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "name": "pagina-gia-fatta?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        672,
+        -80
+      ],
+      "id": "ed546d45-6113-43c5-aef5-f1c140cba4eb"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://PADDLEOCR_GATEWAY_HOST:8091/parse_page",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"pdfPath\": \"{{ $json.pdfPath }}\",\n  \"projectName\": \"{{ $json.projectName }}\",\n  \"page\": {{ $json.page }}\n}",
+        "options": {
+          "timeout": 600000
+        }
+      },
+      "name": "estrai-pagina-v2",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1168,
+        0
+      ],
+      "id": "c1dff991-3ef7-4520-a394-216456457535",
+      "retryOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nlet projectName = items[0]?.json?.projectName || '';\nif (!projectName) { try { projectName = $('imposta-progetto').first().json.projectName; } catch(e) {} }\n\nconst results = [];\nfor (const item of items) {\n  const pageNum = item.json.page;\n  const text = (item.json.markdown || '').trim();\n  results.push({\n    json: {\n      fileName: item.json.fileName || `page_${pageNum}.md`,\n      projectName,\n      page: pageNum,\n      finalContent: `# ${projectName} - Pagina ${pageNum}\\n\\n${text}`\n    }\n  });\n}\nreturn results;\n"
+      },
+      "name": "filtro-e-assemblaggio-md-v2",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        288
+      ],
+      "id": "f7c10c91-83e2-42d5-8212-f6f8735dbe50"
+    },
+    {
+      "parameters": {
+        "jsCode": "const fs = require('fs');\nconst items = $input.all();\nlet projectName = items[0]?.json?.projectName || '';\nif (!projectName) { try { projectName = $('imposta-progetto').first().json.projectName; } catch(e) {} }\n\nconst fixesPath = `/shared/projects/${projectName}/manual_fixes.json`;\n\nlet fixes = [];\nif (fs.existsSync(fixesPath)) {\n  try {\n    fixes = JSON.parse(fs.readFileSync(fixesPath, 'utf8'));\n  } catch (e) {\n    throw new Error(`manual_fixes.json non e' JSON valido per il progetto '${projectName}': ${e.message}`);\n  }\n}\n\nif (fixes.length === 0) {\n  return items;\n}\n\nfunction escapeRegExp(s) {\n  return s.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&');\n}\n\nfunction applyFix(text, fix) {\n  const pattern = fix.regex\n    ? new RegExp(fix.find, fix.flags || 'g')\n    : new RegExp(escapeRegExp(fix.find), 'g');\n  return text.replace(pattern, fix.replace);\n}\n\nfor (const item of items) {\n  const pageNum = item.json.page;\n  let text = item.json.finalContent || '';\n  for (const fix of fixes) {\n    if (fix.page != null && fix.page !== pageNum) continue;\n    text = applyFix(text, fix);\n  }\n  item.json.finalContent = text;\n}\n\nreturn items;\n"
+      },
+      "name": "applica-fix-manuali",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        672,
+        288
+      ],
+      "id": "eb81022f-21a6-442f-bf42-d361c1f9e797"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nlet projectName = items[0]?.json?.projectName || '';\nif (!projectName) {\n  try { projectName = $('imposta-progetto').first().json.projectName; } catch(e) {}\n}\nconst finalContent = items.map(i => i.json.finalContent);\nreturn [{ json: { finalContent, projectName } }];\n"
+      },
+      "name": "Aggregate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        896,
+        224
+      ],
+      "id": "6b8e60e9-6f15-4d46-b08e-9d684e98fe8f"
+    },
+    {
+      "parameters": {
+        "jsCode": "const fs = require('fs');\nconst items = $input.all();\nlet projectName = items[0]?.json?.projectName || '';\nif (!projectName) { try { projectName = $('imposta-progetto').first().json.projectName; } catch(e) {} }\n\nconst finalContents = items[0].json.finalContent;\nconst joined = Array.isArray(finalContents)\n  ? finalContents\n      .map(c => String(c).replace(/^# [^\\n]+ - Pagina \\d+\\s*\\n\\n?/, ''))\n      .join('\\n\\n---\\n\\n')\n  : String(finalContents || '').replace(/^# [^\\n]+ - Pagina \\d+\\s*\\n\\n?/, '');\n\nconst filePath = `/shared/projects/${projectName}/${projectName}.md`;\nfs.writeFileSync(filePath, joined, 'utf8');\n\nreturn [{ json: { saved: filePath, projectName, bytes: Buffer.byteLength(joined, 'utf8') } }];"
+      },
+      "name": "salva-markdown-totale",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        224
+      ],
+      "id": "4aaa89d5-c14e-4e74-bcf9-28022e3f8b37"
+    },
+    {
+      "parameters": {
+        "jsCode": "const fs = require('fs');\nconst items = $input.all();\nconst projectName = items[0]?.json?.projectName || $('imposta-progetto').first().json.projectName;\n\nconst capitoliDir = `/shared/projects/${projectName}/capitoli`;\n\nif (fs.existsSync(capitoliDir)) {\n  for (const f of fs.readdirSync(capitoliDir)) {\n    fs.unlinkSync(`${capitoliDir}/${f}`);\n  }\n}\nfs.mkdirSync(capitoliDir, { recursive: true });\n\nconst texts = items.map(item => {\n  let content = item.json.finalContent || '';\n  content = content.replace(/^# .+? - Pagina \\d+\\s*\\n/, '');\n  return content.trim();\n});\n\nlet fullText = texts.join('\\n\\n<!-- pb -->\\n\\n');\n\nfullText = fullText.replace(/(\\w)-\\n\\n<!-- pb -->\\n\\n(\\w)/g, '$1$2');\nfullText = fullText.replace(/([^.!?:;»\\\")\\]\\n])\\n\\n<!-- pb -->\\n\\n([a-z\\u00e0-\\u00fc])/g, '$1 $2');\nfullText = fullText.replace(/\\n*<!-- pb -->\\n*/g, '\\n\\n');\nfullText = fullText.replace(/\\n{3,}/g, '\\n\\n');\n\nconst parts = fullText.split(/(?=^## )/m).filter(p => p.trim());\n\nif (parts.length === 0) {\n  const filename = `${capitoliDir}/01-completo.md`;\n  fs.writeFileSync(filename, fullText, 'utf8');\n  return [{ json: { salvati: 1, files: [filename], projectName } }];\n}\n\nconst savedFiles = [];\nfor (let i = 0; i < parts.length; i++) {\n  const content = parts[i].trim();\n  const firstLine = content.split('\\n')[0].trim();\n  let title = firstLine.replace(/^#+\\s*/, '').trim();\n  if (/^!\\[.*\\]\\(.*\\)/.test(firstLine) || !title) {\n    title = 'COPERTINA';\n  }\n  const slug = title\n    .toLowerCase()\n    .replace(/[\\u00e0\\u00e1\\u00e2\\u00e4]/g, 'a').replace(/[\\u00e8\\u00e9\\u00ea\\u00eb]/g, 'e')\n    .replace(/[\\u00ec\\u00ed\\u00ee\\u00ef]/g, 'i').replace(/[\\u00f2\\u00f3\\u00f4\\u00f6]/g, 'o').replace(/[\\u00f9\\u00fa\\u00fb\\u00fc]/g, 'u')\n    .replace(/[^a-z0-9.]+/g, '-').replace(/^-|-$/g, '').slice(0, 60);\n  const filename = `${capitoliDir}/${String(i + 1).padStart(2, '0')}-${slug}.md`;\n  fs.writeFileSync(filename, content, 'utf8');\n  savedFiles.push({ index: i + 1, title, filename });\n}\n\nreturn [{ json: { salvati: savedFiles.length, files: savedFiles, projectName } }];"
+      },
+      "name": "split-capitoli",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        896,
+        368
+      ],
+      "id": "bfb6a2bd-1ef7-47f0-a935-cf4eb23c8e01"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const { execSync } = require('child_process');\nconst item = $input.item;\nconst page = item.json.page;\n\n// Riavvio periodico del motore VLM (llama-server, PaddleOCR-VL) ogni 15\n// pagine: leak di memoria per-richiesta, stesso tipo di problema gia'\n// visto e risolto per Surya (vedi dnb_surya_layout_integration) - il fix\n// sulla dimensione iniziale (--parallel 1 --ctx-size 16384) abbassa il\n// punto di partenza ma non ferma la crescita nel tempo. Verificato:\n// riavviato pulito a ~719MB, tornato a 7.3GB dopo ~90 pagine, causa di\n// swap thrashing sull'host (2026-08-04). Fire-and-forget (timeout client\n// breve): il riavvio prosegue lato server anche se n8n non aspetta.\nif (page % 15 === 0) {\n  try {\n    execSync('curl -s -m 3 -X POST http://PADDLEOCR_GATEWAY_HOST:8091/restart_vlm');\n  } catch (e) {\n    // Se il riavvio fallisce (rete, timeout) si prosegue comunque - una\n    // singola pagina lenta e' preferibile a bloccare l'intero libro.\n  }\n}\n\nreturn item;"
+      },
+      "name": "verifica-riavvio-periodico-vlm",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1024,
+        -112
+      ],
+      "id": "d2a1a3f0-9b1e-4b1a-8b0a-1a2b3c4d5e6f"
+    }
+  ],
+  "connections": {
+    "trigger manuale": {
+      "main": [
+        [
+          {
+            "node": "imposta-progetto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "imposta-progetto": {
+      "main": [
+        [
+          {
+            "node": "crea-cartelle",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "crea-cartelle": {
+      "main": [
+        [
+          {
+            "node": "conta-pagine",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "conta-pagine": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [
+          {
+            "node": "filtro-e-assemblaggio-md-v2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "verifica-pagina-esistente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "verifica-pagina-esistente": {
+      "main": [
+        [
+          {
+            "node": "pagina-gia-fatta?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "pagina-gia-fatta?": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "verifica-riavvio-periodico-vlm",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "estrai-pagina-v2": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "filtro-e-assemblaggio-md-v2": {
+      "main": [
+        [
+          {
+            "node": "applica-fix-manuali",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "applica-fix-manuali": {
+      "main": [
+        [
+          {
+            "node": "Aggregate",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "split-capitoli",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate": {
+      "main": [
+        [
+          {
+            "node": "salva-markdown-totale",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "verifica-riavvio-periodico-vlm": {
+      "main": [
+        [
+          {
+            "node": "estrai-pagina-v2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  }
+}
