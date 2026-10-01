@@ -218,6 +218,12 @@ via Settings → Import Workflow.
 | `DOTS_MOCR_PYTHON` | `/opt/docparser/bin/python` | Python binary for dots.mocr |
 | `DOTS_MOCR_SCRIPT` | `/opt/dots.ocr/run_inference.py` | Inference script path |
 
+## LoRA entity extraction (experimental)
+
+On top of the Markdown output, [`lora/`](./lora) contains the tooling to train and validate small
+per-entity-type LoRA adapters that extract structured entities (spells, items, monsters, ...) from
+the cleaned chapters. Training data comes from commercial manuals and is **not** included.
+
 ## Status
 
 🚧 Work in progress — part of a larger homelab AI project.
@@ -225,3 +231,5 @@ via Settings → Import Workflow.
 ## Notes
 
 Deployed on LXC containers (Proxmox). GPU: NVIDIA T1000 8GB.
+
+**Content policy:** this repository contains code only. Commercial rulebooks, their text, images and any dataset derived from them are never committed (see `.gitignore`); the only manual referenced is the CC-licensed SRD.

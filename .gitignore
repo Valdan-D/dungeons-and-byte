@@ -1,0 +1,14 @@
+# Never commit book content or anything derived from it
+*.pdf
+*.gguf
+*.safetensors
+**/dataset*/
+**/projects/
+**/validazione*/
+val_v2/
+validation_books.json
+*.jsonl
+# local
+__pycache__/
+*.pyc
+.env
