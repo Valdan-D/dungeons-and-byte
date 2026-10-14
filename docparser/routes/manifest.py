@@ -220,7 +220,7 @@ def merge_dropcap_paragraphs(blocks):
     return out
 
 
-def _fetch_surya_zones(page, zoom=2.5, gateway_url="http://192.168.178.115:8100/layout", timeout=120):
+def _fetch_surya_zones(page, zoom=2.5, gateway_url=os.environ.get("SURYA_GATEWAY_URL", "http://localhost:8100/layout"), timeout=120):
     """Chiama il gateway Surya (container 114, layout detection via VLM) per
     ottenere le zone reali della pagina (Text/Table/Picture/SectionHeader/...).
     Ritorna le zone con bbox in coordinate PDF (punti), o None se il gateway

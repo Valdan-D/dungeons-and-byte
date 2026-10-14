@@ -8,7 +8,7 @@ import json, os, re, subprocess, time, glob
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 BASE = "/opt/dnb-lora-models"; RIS = f"{BASE}/risultati_srd"
-TOKEN = os.environ["RUNNER_TOKEN"]; IP_AMMESSI = {"192.168.178.251", "127.0.0.1"}
+TOKEN = os.environ["RUNNER_TOKEN"]; IP_AMMESSI = set(os.environ.get("RUNNER_ALLOWED_IPS", "127.0.0.1").split(","))
 TIPI = ["bestiario_new", "bestiario_old", "oggetto", "regola", "incantesimo", "classe", "specie", "background", "luogo"]
 FINESTRE = {"srd_unite": (f"{BASE}/srd_finestre_unite.json", "unite"), "srd_mostri_titoli": (f"{BASE}/srd_mostri_titoli.json", "titoli")}
 

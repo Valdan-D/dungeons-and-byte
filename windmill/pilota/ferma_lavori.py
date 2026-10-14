@@ -1,5 +1,5 @@
 import json, os, urllib.request, urllib.error
-RUNNER = "http://192.168.178.121:8095"
+RUNNER = "http://<GPU_HOST>:8095"
 
 def chiama(percorso, corpo=None):
     dati = json.dumps(corpo).encode() if corpo is not None else None

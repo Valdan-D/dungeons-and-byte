@@ -244,3 +244,5 @@ Solo codice: nessun manuale, dataset o risultato derivato (vedi "Content policy"
   - `pilota/`: script che lanciano/fermano/controllano i lavori LoRA tramite il runner (`RUNNER_TOKEN` arriva da variabile d'ambiente, mai nel codice).
 - `lora/` – addestramento v5 (`train_lora_v5.py`, `export_gguf.py`), prompt delle 9 tipologie (`prompts9.json`), estrazione su un libro intero (`libro_lora_v2.py`, `coda_srd.sh`), validazione a finestre (`valida_finestre.py`) e `dnb_runner.py` (servizio con comandi fissi, accetta solo l'IP di Windmill e un segreto da `/etc/dnb-runner.env`).
 - `classificatore/` – prova isolata (GPU) del classificatore multi-label GLiNER2.5-Decide: tempi e qualità zero-shot. Non ancora integrato nella pipeline.
+
+**Configuration note:** host addresses are not hard-coded. In `windmill/` the placeholder `<GPU_HOST>` stands for the container that runs the OCR gateway (:8091) and the LoRA runner (:8095); set it to your own address in Windmill. `RUNNER_ALLOWED_IPS` (comma-separated) lists the addresses the runner accepts; `LITELLM_URL` and `SURYA_GATEWAY_URL` configure the docparser endpoints.
