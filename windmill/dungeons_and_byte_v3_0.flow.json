@@ -1,0 +1,283 @@
+{
+ "workspace_id": "dnb",
+ "path": "f/dungeons_byte_v3/dungeons_and_byte_v3_0",
+ "summary": "Dungeons&Byte V3.0 - da PDF a markdown (OCR)",
+ "description": "Porting in Windmill del flusso V_2.0: PDF del pool -> pagine markdown (PaddleOCR, riprende dalle pagine mancanti, riavvio VLM ogni 15 pagine) -> correzioni manuali -> <progetto>.md -> capitoli/. Scrive in /shared/projects/<progetto>. Il passo successivo e' Ricapitolando.",
+ "value": {
+  "modules": [
+   {
+    "id": "a",
+    "value": {
+     "path": "f/dungeons_byte_v3/imposta_progetto",
+     "type": "script",
+     "input_transforms": {
+      "progetto": {
+       "expr": "flow_input.progetto",
+       "type": "javascript"
+      }
+     }
+    },
+    "summary": "imposta-progetto"
+   },
+   {
+    "id": "b",
+    "value": {
+     "path": "f/dungeons_byte_v3/crea_cartelle",
+     "type": "script",
+     "input_transforms": {
+      "projectName": {
+       "expr": "results.a.projectName",
+       "type": "javascript"
+      }
+     }
+    },
+    "summary": "crea-cartelle"
+   },
+   {
+    "id": "c",
+    "value": {
+     "path": "f/dungeons_byte_v3/conta_pagine",
+     "type": "script",
+     "input_transforms": {
+      "pdfPath": {
+       "expr": "results.a.pdfPath",
+       "type": "javascript"
+      },
+      "projectName": {
+       "expr": "results.a.projectName",
+       "type": "javascript"
+      }
+     }
+    },
+    "summary": "conta-pagine"
+   },
+   {
+    "id": "d",
+    "value": {
+     "type": "forloopflow",
+     "modules": [
+      {
+       "id": "d1",
+       "value": {
+        "path": "f/dungeons_byte_v3/verifica_pagina_esistente",
+        "type": "script",
+        "input_transforms": {
+         "page": {
+          "expr": "flow_input.iter.value",
+          "type": "javascript"
+         },
+         "projectName": {
+          "expr": "results.a.projectName",
+          "type": "javascript"
+         }
+        }
+       },
+       "summary": "verifica-pagina-esistente"
+      },
+      {
+       "id": "d2",
+       "value": {
+        "type": "branchone",
+        "default": [
+         {
+          "id": "d3",
+          "value": {
+           "path": "f/dungeons_byte_v3/verifica_riavvio_vlm",
+           "type": "script",
+           "input_transforms": {
+            "page": {
+             "expr": "flow_input.iter.value",
+             "type": "javascript"
+            }
+           }
+          },
+          "summary": "verifica-riavvio-periodico-vlm"
+         },
+         {
+          "id": "d4",
+          "value": {
+           "type": "branchone",
+           "default": [],
+           "branches": [
+            {
+             "expr": "results.d3.deveRiavviareVlm",
+             "modules": [
+              {
+               "id": "d5",
+               "value": {
+                "path": "f/dungeons_byte_v3/chiama_restart_vlm",
+                "type": "script",
+                "input_transforms": {}
+               },
+               "summary": "chiama-restart-vlm"
+              }
+             ],
+             "summary": "ogni 15 pagine: riavvia il VLM",
+             "parallel": true,
+             "skip_failure": true
+            }
+           ]
+          },
+          "summary": "serve-riavvio-vlm?"
+         },
+         {
+          "id": "d6",
+          "value": {
+           "path": "f/dungeons_byte_v3/estrai_pagina_v2",
+           "type": "script",
+           "input_transforms": {
+            "page": {
+             "expr": "flow_input.iter.value",
+             "type": "javascript"
+            },
+            "pdfPath": {
+             "expr": "results.a.pdfPath",
+             "type": "javascript"
+            },
+            "projectName": {
+             "expr": "results.a.projectName",
+             "type": "javascript"
+            }
+           }
+          },
+          "summary": "estrai-pagina-v2"
+         }
+        ],
+        "branches": [
+         {
+          "expr": "results.d1.paginaGiaFatta",
+          "modules": [],
+          "summary": "pagina gia' fatta: salta",
+          "parallel": true,
+          "skip_failure": true
+         }
+        ]
+       },
+       "summary": "pagina-gia-fatta? (se no: riavvio periodico del VLM ed estrazione)"
+      }
+     ],
+     "iterator": {
+      "expr": "results.c.pagine",
+      "type": "javascript"
+     },
+     "parallel": false,
+     "skip_failures": false
+    },
+    "summary": "Loop Over Items (una pagina alla volta)"
+   },
+   {
+    "id": "e",
+    "value": {
+     "path": "f/dungeons_byte_v3/filtro_e_assemblaggio_md_v2",
+     "type": "script",
+     "input_transforms": {
+      "pagine": {
+       "expr": "results.c.pagine",
+       "type": "javascript"
+      },
+      "projectName": {
+       "expr": "results.a.projectName",
+       "type": "javascript"
+      }
+     }
+    },
+    "summary": "filtro-e-assemblaggio-md-v2"
+   },
+   {
+    "id": "f",
+    "value": {
+     "path": "f/dungeons_byte_v3/applica_fix_manuali",
+     "type": "script",
+     "input_transforms": {
+      "items": {
+       "expr": "results.e",
+       "type": "javascript"
+      }
+     }
+    },
+    "summary": "applica-fix-manuali"
+   },
+   {
+    "id": "g",
+    "value": {
+     "path": "f/dungeons_byte_v3/aggregate",
+     "type": "script",
+     "input_transforms": {
+      "items": {
+       "expr": "results.f",
+       "type": "javascript"
+      }
+     }
+    },
+    "summary": "Aggregate"
+   },
+   {
+    "id": "h",
+    "value": {
+     "path": "f/dungeons_byte_v3/salva_markdown_totale",
+     "type": "script",
+     "input_transforms": {
+      "aggregato": {
+       "expr": "results.g",
+       "type": "javascript"
+      },
+      "cartella_output": {
+       "expr": "flow_input.cartella_output",
+       "type": "javascript"
+      }
+     }
+    },
+    "summary": "salva-markdown-totale"
+   },
+   {
+    "id": "i",
+    "value": {
+     "path": "f/dungeons_byte_v3/split_capitoli",
+     "type": "script",
+     "input_transforms": {
+      "items": {
+       "expr": "results.f",
+       "type": "javascript"
+      },
+      "cartella_output": {
+       "expr": "flow_input.cartella_output",
+       "type": "javascript"
+      }
+     }
+    },
+    "summary": "split-capitoli"
+   }
+  ]
+ },
+ "edited_by": "admin",
+ "edited_at": "2026-10-14T10:14:15.738160Z",
+ "archived": false,
+ "schema": {
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "order": [
+   "progetto",
+   "cartella_output"
+  ],
+  "required": [
+   "progetto"
+  ],
+  "properties": {
+   "progetto": {
+    "type": "object",
+    "format": "dynselect-progetto",
+    "description": "PDF da trasformare (l'elenco legge la cartella pool e si aggiorna da solo)"
+   },
+   "cartella_output": {
+    "type": "string",
+    "default": "",
+    "description": "Solo per prove: se compilato, <progetto>.md e capitoli/ vengono scritti qui invece che nel progetto"
+   }
+  },
+  "x-windmill-dyn-select-code": "import os\n\ndef progetto():\n    \"\"\"Elenco dei PDF presenti in /shared/projects/pool (si aggiorna da solo quando si aggiungono file).\"\"\"\n    d = \"/shared/projects/pool\"\n    return [{\"value\": f[:-4], \"label\": f[:-4]} for f in sorted(os.listdir(d)) if f.lower().endswith(\".pdf\")]\n",
+  "x-windmill-dyn-select-lang": "python3"
+ },
+ "extra_perms": {},
+ "version_id": 3,
+ "is_draft": false
+}

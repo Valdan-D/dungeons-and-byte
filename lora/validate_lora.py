@@ -1,12 +1,9 @@
 """
-Validazione sistematica degli adapter LoRA D&B su libri di validazione mai visti in
-training (bestiario_png sostituito da bestiario_new + bestiario_old dal 29/09/2026;
-bestiario_old non ha ground truth di validazione se i libri di validazione sono tutti 5e).
-
-I libri di validazione si dichiarano in `validation_books.json` (non incluso nel repo:
-dipende da quali manuali si possiedono): mappa "cartella progetto" -> "suffisso file
-ground truth". Esempio con il solo SRD, rilasciato con licenza CC:
-  {"IT_SRD_CC_v5.2.1 - Manuale - dnd - 5.5": "IT_SRD_CC_v5.2.1"}
+Validazione sistematica degli adapter LoRA D&B sui 3 libri di validazione
+(bestiario_png sostituito da bestiario_new + bestiario_old dal 29/09/2026;
+bestiario_old non ha ground truth di validazione, i libri di validazione sono tutti 5e)
+(IT_SRD_CC_v5.2.1, due avventure 5e introduttive),
+mai visti in training.
 
 Per ogni tipologia:
   1. Avvia llama-server puntato sul .gguf corrispondente
@@ -37,14 +34,18 @@ from pathlib import Path
 import requests
 
 PROJECTS_ROOT = Path("/shared/projects")
-VALIDAZIONE_DIR = PROJECTS_ROOT / "validazione"
+VALIDAZIONE_DIR = PROJECTS_ROOT / "lora" / "dati_sorgente" / "validazione"
 MODELS_ROOT = Path("/opt/dnb-lora-models/adapters")
 LLAMA_SERVER_BIN = "/opt/llamacpp-paddleocr/vulkan/llama-b10242/llama-server"
 PORT = 8099  # porta dedicata alla validazione, diversa da quella di produzione (8090)
 
 # mappa esplicita cartella libro -> suffisso usato nei nomi dei file di validazione
 # (verificato con `ls /shared/projects/validazione/`, non derivabile in modo affidabile dal nome cartella)
-LIBRI_VALIDAZIONE = json.loads((Path(__file__).parent / "validation_books.json").read_text(encoding="utf-8"))
+LIBRI_VALIDAZIONE = {
+    "IT_SRD_CC_v5.2.1 - Manuale - dnd - 5.5": "IT_SRD_CC_v5.2.1",
+    "<avventura introduttiva A>": "avventura_a",
+    "<avventura introduttiva B>": "avventura_b",
+}
 
 # stessi system prompt usati nel dataset di training (da dataset_consolidato/*_train.jsonl)
 SYSTEM_PROMPTS = {

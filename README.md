@@ -233,3 +233,14 @@ the cleaned chapters. Training data comes from commercial manuals and is **not**
 Deployed on LXC containers (Proxmox). GPU: NVIDIA T1000 8GB.
 
 **Content policy:** this repository contains code only. Commercial rulebooks, their text, images and any dataset derived from them are never committed (see `.gitignore`); the only manual referenced is the CC-licensed SRD.
+
+## Windmill (orchestrazione), LoRA v5 e classificatore (ottobre 2026)
+
+Solo codice: nessun manuale, dataset o risultato derivato (vedi "Content policy").
+
+- `windmill/` – script e flussi esportati da Windmill (workspace `dnb`):
+  - `windmill_v3/` + `dungeons_and_byte_v3_0.flow.json`: la pipeline OCR (V3.0), stessi passi del flusso n8n; il PDF si sceglie da un menu che legge la cartella `pool/`.
+  - `windmill_ricapitolando/` + `fase1.flow.json`, `fase2.flow.json`: "Ricapitolando" in due flussi separati (rilevamento capitoli e generazione dei file). L'elenco dei progetti nei flussi esportati è un segnaposto.
+  - `pilota/`: script che lanciano/fermano/controllano i lavori LoRA tramite il runner (`RUNNER_TOKEN` arriva da variabile d'ambiente, mai nel codice).
+- `lora/` – addestramento v5 (`train_lora_v5.py`, `export_gguf.py`), prompt delle 9 tipologie (`prompts9.json`), estrazione su un libro intero (`libro_lora_v2.py`, `coda_srd.sh`), validazione a finestre (`valida_finestre.py`) e `dnb_runner.py` (servizio con comandi fissi, accetta solo l'IP di Windmill e un segreto da `/etc/dnb-runner.env`).
+- `classificatore/` – prova isolata (GPU) del classificatore multi-label GLiNER2.5-Decide: tempi e qualità zero-shot. Non ancora integrato nella pipeline.

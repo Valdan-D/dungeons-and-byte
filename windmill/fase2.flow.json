@@ -1,0 +1,59 @@
+{
+ "workspace_id": "dnb",
+ "path": "f/ricapitolando/fase2",
+ "summary": "Ricapitolando FASE 2 - genera i capitoli dalla bozza corretta",
+ "description": "Legge la bozza CORRETTA (estrazione/bozze_capitoli/<progetto>.md) e genera i file <progetto>/capitoli_ricapitolati/*.md. ATTENZIONE: cancella i file gia' presenti in capitoli_ricapitolati del progetto e li riscrive.",
+ "value": {
+  "modules": [
+   {
+    "id": "a",
+    "value": {
+     "path": "f/ricapitolando/fase2_genera_capitoli",
+     "type": "script",
+     "input_transforms": {
+      "progetto": {
+       "expr": "flow_input.progetto",
+       "type": "javascript"
+      },
+      "cartella_output": {
+       "expr": "flow_input.cartella_output",
+       "type": "javascript"
+      }
+     }
+    },
+    "summary": "Genera capitoli_ricapitolati dalla bozza corretta (cancella e riscrive i file del progetto)"
+   }
+  ]
+ },
+ "edited_by": "admin",
+ "edited_at": "2026-10-14T10:04:42.455407Z",
+ "archived": false,
+ "schema": {
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "order": [
+   "progetto",
+   "cartella_output"
+  ],
+  "required": [
+   "progetto"
+  ],
+  "properties": {
+   "progetto": {
+    "type": "string",
+    "description": "Progetto (cartella in /shared/projects)",
+    "enum": [
+     "<un PDF presente in pool/>"
+    ]
+   },
+   "cartella_output": {
+    "type": "string",
+    "default": "",
+    "description": "Solo per prove: se compilato scrive in <cartella>/<progetto>/capitoli_ricapitolati invece che nel progetto"
+   }
+  }
+ },
+ "extra_perms": {},
+ "version_id": 2,
+ "is_draft": false
+}

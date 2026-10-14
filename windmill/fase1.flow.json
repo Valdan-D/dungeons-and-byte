@@ -1,0 +1,77 @@
+{
+ "workspace_id": "dnb",
+ "path": "f/ricapitolando/fase1",
+ "summary": "Ricapitolando FASE 1 - rileva capitoli (bozza)",
+ "description": "Legge l'outline del PDF e le pagine OCR, e scrive la BOZZA dei capitoli in estrazione/bozze_capitoli/<progetto>.md (+ <progetto>_da_verificare.txt). Poi correggi la bozza a mano e lancia la FASE 2. ATTENZIONE: sovrascrive la bozza gia' presente.",
+ "value": {
+  "modules": [
+   {
+    "id": "a",
+    "value": {
+     "path": "f/ricapitolando/outline_pdf",
+     "type": "script",
+     "input_transforms": {
+      "progetto": {
+       "expr": "flow_input.progetto",
+       "type": "javascript"
+      }
+     }
+    },
+    "summary": "Legge l'outline nativo del PDF"
+   },
+   {
+    "id": "b",
+    "value": {
+     "path": "f/ricapitolando/fase1_rileva_capitoli",
+     "type": "script",
+     "input_transforms": {
+      "outline": {
+       "expr": "results.a",
+       "type": "javascript"
+      },
+      "progetto": {
+       "expr": "flow_input.progetto",
+       "type": "javascript"
+      },
+      "cartella_output": {
+       "expr": "flow_input.cartella_output",
+       "type": "javascript"
+      }
+     }
+    },
+    "summary": "Rileva i capitoli e scrive la bozza"
+   }
+  ]
+ },
+ "edited_by": "admin",
+ "edited_at": "2026-10-14T10:04:41.785761Z",
+ "archived": false,
+ "schema": {
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "order": [
+   "progetto",
+   "cartella_output"
+  ],
+  "required": [
+   "progetto"
+  ],
+  "properties": {
+   "progetto": {
+    "type": "string",
+    "description": "Progetto (cartella in /shared/projects)",
+    "enum": [
+     "<un PDF presente in pool/>"
+    ]
+   },
+   "cartella_output": {
+    "type": "string",
+    "default": "",
+    "description": "Solo per prove: se compilato scrive qui invece che in estrazione/bozze_capitoli"
+   }
+  }
+ },
+ "extra_perms": {},
+ "version_id": 1,
+ "is_draft": false
+}

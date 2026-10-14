@@ -1,0 +1,12 @@
+[Unit]
+Description=Esecutore lavori LoRA D&B (comandi fissi, solo da Windmill)
+After=network.target
+
+[Service]
+EnvironmentFile=/etc/dnb-runner.env
+ExecStart=/usr/bin/python3 /opt/dnb-lora-models/dnb_runner.py
+Restart=on-failure
+User=root
+
+[Install]
+WantedBy=multi-user.target
