@@ -246,3 +246,17 @@ Solo codice: nessun manuale, dataset o risultato derivato (vedi "Content policy"
 - `classificatore/` – prova isolata (GPU) del classificatore multi-label GLiNER2.5-Decide: tempi e qualità zero-shot. Non ancora integrato nella pipeline.
 
 **Configuration note:** host addresses are not hard-coded. In `windmill/` the placeholder `<GPU_HOST>` stands for the container that runs the OCR gateway (:8091) and the LoRA runner (:8095); set it to your own address in Windmill. `RUNNER_ALLOWED_IPS` (comma-separated) lists the addresses the runner accepts; `LITELLM_URL` and `SURYA_GATEWAY_URL` configure the docparser endpoints.
+
+## Block classifier, labelling and extraction flows (October 2026)
+
+Still code only. Windmill flows are exported as JSON; host addresses are placeholders (see the configuration note above).
+
+- `classificatore/` – the block classifier pipeline that decides which LoRA sees which part of a book:
+  - `classifica_libro.py`: splits a book (`capitoli_ricapitolati/`) into units of at most ~400 tokens that never cross two chapter files, and scores every unit for the 8 typologies with GLiNER2.5-multi-Decide plus a LoRA adapter (GPU). Writes `etichette/punteggi.json`.
+  - `costruisci_finestre.py`: builds the extraction windows of one LoRA from the labelled intervals (margin of one unit, title-only files attached to their body, one card per window for monsters, windows cut on headings). CPU only.
+  - `valuta_adapter.py`: evaluates an adapter on the test set with a threshold sweep.
+- `windmill/etichettatura/` – flow `etichetta_libro`: start the classifier through the runner, wait, apply the threshold and merge contiguous units into line intervals (`etichette/etichette.json`). Re-running with another threshold does not use the GPU.
+- `windmill/estrazione/` – flow `estrai_libro`: picks the LoRAs (bestiario new/old from the year in the manual name: 2014 or later = new; if there is no year, edition 5 or 5.5 = new), builds the windows, runs the LoRAs one at a time and collects the entities in `estrazione/entita.json`.
+- `lora/dnb_runner.py` now also exposes `/classifica`, `/finestre`, `/estrai` and `/estrazione`; they refuse to start while the GPU is busy or the OCR service is running. `lora/estrazione_libro.sh` runs several LoRAs in a row on already built windows.
+
+Measured on the CC-licensed SRD (windows from the classifier vs. fixed windows over the whole book): the seven non-monster LoRAs went from about 55 hours to about 6 hours, and the extra, wrong extractions dropped from hundreds to a handful.
