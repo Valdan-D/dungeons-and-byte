@@ -1,0 +1,111 @@
+{
+  "summary": "EPUB - crea l'ebook di un libro",
+  "description": "Crea l'EPUB3 (con indice e immagini) dai capitoli ricapitolati di un libro: serve solo il passo 'Ricapitola'. Non usa la GPU ne' l'OCR. Scrive <progetto>/epub/<titolo>.epub.",
+  "value": {
+    "modules": [
+      {
+        "id": "a",
+        "value": {
+          "path": "f/epub/crea_epub",
+          "type": "script",
+          "input_transforms": {
+            "autore": {
+              "expr": "flow_input.autore",
+              "type": "javascript"
+            },
+            "titolo": {
+              "expr": "flow_input.titolo",
+              "type": "javascript"
+            },
+            "progetto": {
+              "expr": "(typeof flow_input.progetto === 'object' && flow_input.progetto !== null) ? flow_input.progetto.value : flow_input.progetto",
+              "type": "javascript"
+            },
+            "qualita_jpeg": {
+              "expr": "flow_input.qualita_jpeg",
+              "type": "javascript"
+            },
+            "scala_di_grigi": {
+              "expr": "flow_input.scala_di_grigi",
+              "type": "javascript"
+            },
+            "larghezza_max_px": {
+              "expr": "flow_input.larghezza_max_px",
+              "type": "javascript"
+            },
+            "ottimizza_immagini": {
+              "expr": "flow_input.ottimizza_immagini",
+              "type": "javascript"
+            },
+            "escludi_indice_stampato": {
+              "expr": "flow_input.escludi_indice_stampato",
+              "type": "javascript"
+            }
+          }
+        },
+        "summary": "Crea l'EPUB"
+      }
+    ]
+  },
+  "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "order": [
+      "progetto",
+      "titolo",
+      "autore",
+      "escludi_indice_stampato",
+      "ottimizza_immagini",
+      "larghezza_max_px",
+      "qualita_jpeg",
+      "scala_di_grigi"
+    ],
+    "required": [
+      "progetto"
+    ],
+    "properties": {
+      "progetto": {
+        "type": "object",
+        "format": "dynselect-progetto",
+        "description": "Libro di cui creare l'EPUB (compaiono i libri con capitoli_ricapitolati)"
+      },
+      "titolo": {
+        "type": "string",
+        "default": "",
+        "description": "Titolo dell'ebook (vuoto = ricavato dal nome del libro)"
+      },
+      "autore": {
+        "type": "string",
+        "default": "",
+        "description": "Autore/editore, facoltativo"
+      },
+      "escludi_indice_stampato": {
+        "type": "boolean",
+        "default": true,
+        "description": "Toglie l'indice stampato e l'indice analitico (hanno numeri di pagina inutili in un ebook): l'EPUB ha il suo indice"
+      },
+      "ottimizza_immagini": {
+        "type": "boolean",
+        "default": true,
+        "description": "Ridimensiona e ricomprime le immagini dentro l'EPUB (gli originali non si toccano): file molto piu' leggero"
+      },
+      "larghezza_max_px": {
+        "type": "number",
+        "default": 1100,
+        "description": "Larghezza massima delle immagini in pixel (1100 va bene per Kindle e telefoni; 1600 per tablet)"
+      },
+      "qualita_jpeg": {
+        "type": "number",
+        "default": 70,
+        "description": "Qualita' JPEG 30-95 (70 = buon compromesso)"
+      },
+      "scala_di_grigi": {
+        "type": "boolean",
+        "default": false,
+        "description": "Immagini in bianco e nero: ancora piu' leggere, ideali per Kindle e-ink"
+      }
+    },
+    "x-windmill-dyn-select-code": "import os\n\ndef progetto():\n    \"\"\"Libri pronti per l'etichettatura: cartelle di /shared/projects con capitoli_ricapitolati.\"\"\"\n    d = \"/shared/projects\"\n    return [{\"value\": n, \"label\": n} for n in sorted(os.listdir(d)) if os.path.isdir(os.path.join(d, n, \"capitoli_ricapitolati\"))]\n",
+    "x-windmill-dyn-select-lang": "python3"
+  }
+}

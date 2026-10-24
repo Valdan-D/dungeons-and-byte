@@ -1,109 +1,101 @@
 {
- "workspace_id": "dnb",
- "path": "f/etichettatura/etichetta_libro",
- "summary": "Etichettatura - classificatore a blocchi",
- "description": "Classifica ogni blocco del libro (GPU, ~7 unita'/s), poi applica la soglia e unisce i blocchi contigui in intervalli di righe per tipologia. Scrive <progetto>/etichette/punteggi.json e etichette.json. Rifiuta se la GPU e' occupata o l'OCR e' attivo.",
- "value": {
-  "modules": [
-   {
-    "id": "a",
-    "value": {
-     "path": "f/etichettatura/lancia_classificazione",
-     "type": "script",
-     "input_transforms": {
-      "rifai": {
-       "expr": "flow_input.rifai",
-       "type": "javascript"
+  "summary": "Etichettatura - classificatore a blocchi",
+  "description": "Classifica ogni blocco del libro (GPU, ~7 unita'/s), poi applica la soglia e unisce i blocchi contigui in intervalli di righe per tipologia. Scrive <progetto>/etichette/punteggi.json e etichette.json. Rifiuta se la GPU e' occupata o l'OCR e' attivo.",
+  "value": {
+    "modules": [
+      {
+        "id": "a",
+        "value": {
+          "path": "f/etichettatura/lancia_classificazione",
+          "type": "script",
+          "input_transforms": {
+            "rifai": {
+              "expr": "flow_input.rifai",
+              "type": "javascript"
+            },
+            "progetto": {
+              "expr": "(typeof flow_input.progetto === 'object' && flow_input.progetto !== null) ? flow_input.progetto.value : flow_input.progetto",
+              "type": "javascript"
+            }
+          }
+        },
+        "summary": "Avvia il classificatore (GPU)"
       },
-      "progetto": {
-       "expr": "(typeof flow_input.progetto === 'object' && flow_input.progetto !== null) ? flow_input.progetto.value : flow_input.progetto",
-       "type": "javascript"
+      {
+        "id": "b",
+        "value": {
+          "path": "f/etichettatura/attendi_classificazione",
+          "type": "script",
+          "input_transforms": {
+            "salta": {
+              "expr": "results.a.saltata === true",
+              "type": "javascript"
+            },
+            "progetto": {
+              "expr": "(typeof flow_input.progetto === 'object' && flow_input.progetto !== null) ? flow_input.progetto.value : flow_input.progetto",
+              "type": "javascript"
+            },
+            "minuti_massimi": {
+              "expr": "60",
+              "type": "javascript"
+            }
+          }
+        },
+        "summary": "Attende la fine"
+      },
+      {
+        "id": "c",
+        "value": {
+          "path": "f/etichettatura/unisci_intervalli",
+          "type": "script",
+          "input_transforms": {
+            "soglia": {
+              "expr": "flow_input.soglia",
+              "type": "javascript"
+            },
+            "progetto": {
+              "expr": "(typeof flow_input.progetto === 'object' && flow_input.progetto !== null) ? flow_input.progetto.value : flow_input.progetto",
+              "type": "javascript"
+            },
+            "salto_righe_massimo": {
+              "expr": "2",
+              "type": "javascript"
+            }
+          }
+        },
+        "summary": "Applica la soglia e unisce in intervalli"
       }
-     }
-    },
-    "summary": "Avvia il classificatore (GPU)"
-   },
-   {
-    "id": "b",
-    "value": {
-     "path": "f/etichettatura/attendi_classificazione",
-     "type": "script",
-     "input_transforms": {
-      "salta": {
-       "expr": "results.a.saltata === true",
-       "type": "javascript"
-      },
-      "progetto": {
-       "expr": "(typeof flow_input.progetto === 'object' && flow_input.progetto !== null) ? flow_input.progetto.value : flow_input.progetto",
-       "type": "javascript"
-      },
-      "minuti_massimi": {
-       "expr": "60",
-       "type": "javascript"
-      }
-     }
-    },
-    "summary": "Attende la fine"
-   },
-   {
-    "id": "c",
-    "value": {
-     "path": "f/etichettatura/unisci_intervalli",
-     "type": "script",
-     "input_transforms": {
-      "soglia": {
-       "expr": "flow_input.soglia",
-       "type": "javascript"
-      },
-      "progetto": {
-       "expr": "(typeof flow_input.progetto === 'object' && flow_input.progetto !== null) ? flow_input.progetto.value : flow_input.progetto",
-       "type": "javascript"
-      },
-      "salto_righe_massimo": {
-       "expr": "2",
-       "type": "javascript"
-      }
-     }
-    },
-    "summary": "Applica la soglia e unisce in intervalli"
-   }
-  ]
- },
- "edited_by": "admin",
- "edited_at": "2026-10-15T14:23:38.213018Z",
- "archived": false,
- "schema": {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "type": "object",
-  "order": [
-   "progetto",
-   "soglia",
-   "rifai"
-  ],
-  "required": [
-   "progetto"
-  ],
-  "properties": {
-   "progetto": {
-    "type": "object",
-    "format": "dynselect-progetto",
-    "description": "Libro da etichettare (l'elenco legge /shared/projects: compaiono i libri con capitoli_ricapitolati)"
-   },
-   "soglia": {
-    "type": "number",
-    "default": 0.8,
-    "description": "Soglia di confidenza per assegnare una tipologia a un blocco (0.8 = valore scelto sul test)"
-   },
-   "rifai": {
-    "type": "boolean",
-    "default": false,
-    "description": "Ricalcola i punteggi con la GPU anche se esistono gia' (altrimenti si salta e si rifa' solo l'unione con la nuova soglia)"
-   }
+    ]
   },
-  "x-windmill-dyn-select-code": "import os\n\ndef progetto():\n    \"\"\"Libri pronti per l'etichettatura: cartelle di /shared/projects con capitoli_ricapitolati.\"\"\"\n    d = \"/shared/projects\"\n    return [{\"value\": n, \"label\": n} for n in sorted(os.listdir(d)) if os.path.isdir(os.path.join(d, n, \"capitoli_ricapitolati\"))]\n",
-  "x-windmill-dyn-select-lang": "python3"
- },
- "extra_perms": {},
- "version_id": 4,
- "is_draft": false
+  "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "order": [
+      "progetto",
+      "soglia",
+      "rifai"
+    ],
+    "required": [
+      "progetto"
+    ],
+    "properties": {
+      "progetto": {
+        "type": "object",
+        "format": "dynselect-progetto",
+        "description": "Libro da etichettare (l'elenco legge /shared/projects: compaiono i libri con capitoli_ricapitolati)"
+      },
+      "soglia": {
+        "type": "number",
+        "default": 0.8,
+        "description": "Soglia di confidenza per assegnare una tipologia a un blocco (0.8 = valore scelto sul test)"
+      },
+      "rifai": {
+        "type": "boolean",
+        "default": false,
+        "description": "Ricalcola i punteggi con la GPU anche se esistono gia' (altrimenti si salta e si rifa' solo l'unione con la nuova soglia)"
+      }
+    },
+    "x-windmill-dyn-select-code": "import os\n\ndef progetto():\n    \"\"\"Libri pronti per l'etichettatura: cartelle di /shared/projects con capitoli_ricapitolati.\"\"\"\n    d = \"/shared/projects\"\n    return [{\"value\": n, \"label\": n} for n in sorted(os.listdir(d)) if os.path.isdir(os.path.join(d, n, \"capitoli_ricapitolati\"))]\n",
+    "x-windmill-dyn-select-lang": "python3"
+  }
 }

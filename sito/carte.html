@@ -1,0 +1,369 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Carte degli incantesimi · Dungeons &amp; Byte</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Crimson+Pro:ital,wght@0,400;0,600;0,700;1,400&family=UnifrakturMaguntia&display=swap" rel="stylesheet">
+<style>
+:root { --parchment:#f2e8c9; --parchment-dark:#e8d9a8; --gold:#c9a84c; --gold-light:#e8c96a; --ink:#1a1208; --blood-dark:#5c0f0f; --bg:#0d0a05; --bg-mid:#1a1208; --line:rgba(201,168,76,.28); }
+* { box-sizing:border-box; }
+body { margin:0; background:var(--bg); color:var(--parchment); font-family:'Crimson Pro',serif; font-size:17px; }
+a { color:var(--gold-light); }
+.top { position:sticky; top:0; z-index:5; display:flex; align-items:center; gap:16px; padding:10px 20px; background:rgba(13,10,5,.95); border-bottom:1px solid var(--line); }
+.brand { font-family:'UnifrakturMaguntia',cursive; font-size:1.6rem; color:var(--gold); text-decoration:none; }
+.brand small { font-family:'Cinzel',serif; font-size:.7rem; letter-spacing:2px; text-transform:uppercase; color:var(--parchment-dark); opacity:.7; margin-left:8px; }
+.top .grow { flex:1; }
+.layout { display:grid; grid-template-columns:minmax(300px,380px) 1fr; gap:0; min-height:calc(100vh - 54px); }
+.panel { border-right:1px solid var(--line); padding:14px 16px; background:var(--bg-mid); position:sticky; top:54px; height:calc(100vh - 54px); overflow:auto; }
+.panel h2 { font-family:'Cinzel',serif; font-size:.95rem; letter-spacing:2px; text-transform:uppercase; color:var(--gold); margin:0 0 10px; }
+.panel input[type=search], .panel select { width:100%; padding:8px 10px; margin-bottom:8px; background:var(--bg); color:var(--parchment); border:1px solid var(--line); border-radius:4px; font:inherit; }
+.chips { display:flex; flex-wrap:wrap; gap:5px; margin:2px 0 10px; }
+.chip { padding:3px 9px; border:1px solid var(--line); border-radius:12px; background:transparent; color:var(--parchment-dark); cursor:pointer; font:inherit; font-size:.9rem; }
+.chip[aria-pressed=true] { background:var(--gold); color:var(--ink); border-color:var(--gold); }
+.row { display:flex; gap:6px; flex-wrap:wrap; margin:6px 0 10px; }
+.btn { padding:6px 12px; border:1px solid var(--gold); border-radius:4px; background:transparent; color:var(--gold-light); cursor:pointer; font:inherit; font-size:.95rem; }
+.btn:hover { background:rgba(201,168,76,.15); }
+.btn.primary { background:var(--gold); color:var(--ink); font-weight:700; }
+.btn.small { padding:3px 9px; font-size:.85rem; }
+.lista { list-style:none; margin:0; padding:0; }
+.lista li label { display:flex; align-items:center; gap:8px; padding:5px 4px; border-bottom:1px solid rgba(201,168,76,.12); cursor:pointer; }
+.lista li label:hover { background:rgba(201,168,76,.08); }
+.lista .nome { flex:1; }
+.lista .meta { font-size:.8rem; color:var(--parchment-dark); opacity:.75; white-space:nowrap; }
+.lista .avv { color:#ffb347; }
+.area { padding:16px 22px; }
+.barra { display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-bottom:14px; padding-bottom:12px; border-bottom:1px solid var(--line); }
+.barra .cont { font-family:'Cinzel',serif; color:var(--gold-light); }
+.barra select, .barra input[type=number] { padding:5px 8px; background:var(--bg); color:var(--parchment); border:1px solid var(--line); border-radius:4px; font:inherit; }
+.barra input[type=number] { width:66px; }
+.nota { font-size:.85rem; color:var(--parchment-dark); opacity:.75; }
+.vuoto { padding:50px 10px; text-align:center; opacity:.7; font-style:italic; }
+.anteprima { display:flex; flex-wrap:wrap; gap:18px 26px; }
+.coppia { display:flex; gap:8px; zoom:1.9; }
+.coppia .carta { box-shadow:0 2px 8px #000a; }
+
+/* ───────── CARTA 63 × 88 mm ───────── */
+.carta { width:63mm; height:88mm; position:relative; overflow:hidden; border-radius:2.6mm; background:#fffdf6; color:#1d1608; display:flex; flex-direction:column;
+  font-family:'Crimson Pro',serif; --c:#555; flex:none; }
+.carta.stampa { border-radius:0; border:.15mm solid #b9b39f; }
+.carta svg.sim { width:1em; height:1em; fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; }
+.carta .band { height:11.5mm; background:var(--c); color:#fff; display:flex; align-items:center; gap:2mm; padding:0 3mm; }
+.carta .band .sim { font-size:6.4mm; }
+.carta .band .sc { flex:1; font-family:'Cinzel',serif; font-size:7.4pt; letter-spacing:.35mm; text-transform:uppercase; font-weight:600; }
+.carta .band .liv { width:8.2mm; height:8.2mm; border-radius:50%; background:#fff; color:var(--c); display:grid; place-items:center; font-family:'Cinzel',serif; font-weight:700; font-size:11pt; }
+.carta .nome { height:13mm; overflow:hidden; flex:none; display:grid; place-items:center; text-align:center; padding:1.4mm 3mm 0; font-family:'Cinzel',serif; font-weight:700; line-height:1.1; color:#1d1608; }
+.carta .sub { text-align:center; font-style:italic; font-size:8pt; color:#4a4230; height:4.2mm; line-height:4.2mm; }
+.carta .flags { height:5mm; display:flex; justify-content:center; gap:2mm; }
+.carta .flags span { font-size:5.8pt; letter-spacing:.2mm; text-transform:uppercase; padding:.4mm 2mm; border:.2mm solid var(--c); color:var(--c); border-radius:2mm; font-weight:700; height:3.6mm; display:flex; align-items:center; }
+.carta .dati { margin:1mm 3.2mm 0; border-top:.25mm solid var(--c); }
+.carta .dati .r { display:flex; gap:2mm; padding:1.5mm 0; border-bottom:.15mm solid #d8d2bd; align-items:baseline; }
+.carta .dati .k { width:17mm; flex:none; font-size:5.8pt; text-transform:uppercase; letter-spacing:.2mm; color:#6b6450; font-weight:700; }
+.carta .dati .v { flex:1; font-size:9pt; line-height:1.1; font-weight:600; }
+.carta .dati .v small { display:block; font-weight:400; font-style:italic; font-size:6pt; color:#555; line-height:1.1; margin-top:.4mm; }
+.carta .classi { margin:2.2mm 3.2mm 0; font-size:7.8pt; line-height:1.2; color:#3a3322; }
+.carta .classi b { font-family:'Cinzel',serif; font-size:5.6pt; letter-spacing:.2mm; text-transform:uppercase; color:var(--c); margin-right:1mm; }
+.carta .foot { margin-top:auto; padding:0 3.2mm 1.8mm; display:flex; justify-content:space-between; font-size:5.2pt; color:#7d7660; }
+.carta.retro .head { height:8mm; background:var(--c); color:#fff; display:flex; align-items:center; gap:1.6mm; padding:0 3mm; }
+.carta.retro .head .sim { font-size:4.6mm; }
+.carta.retro .head .t { flex:1; font-family:'Cinzel',serif; font-weight:700; font-size:7.2pt; line-height:1.05; }
+.carta.retro .head .l { font-size:6pt; opacity:.9; white-space:nowrap; }
+.carta.retro .testo { flex:1; min-height:0; overflow:hidden; padding:2.4mm 3.2mm 1mm; font-size:7.6pt; line-height:1.17; text-align:left; hyphens:auto; }
+.carta.retro .testo p { margin:0 0 1.1mm; }
+.carta.retro .testo p.sup { margin-top:1.6mm; padding:1mm 1.4mm; border-left:.7mm solid var(--c); background:rgba(0,0,0,.045); }
+.carta.retro .testo p.sup b { color:var(--c); }
+.carta.retro .foot { padding-top:1mm; }
+.misura { position:absolute; left:-400mm; top:0; visibility:hidden; }
+
+/* scuole */
+.s-abiurazione{--c:#3b6ea5} .s-ammaliamento{--c:#c2557a} .s-divinazione{--c:#2a8fa8} .s-evocazione{--c:#3f8f4f}
+.s-illusione{--c:#7b5ea7} .s-invocazione{--c:#b3261e} .s-necromanzia{--c:#3a3f3a} .s-trasmutazione{--c:#b8801f}
+
+/* ───────── STAMPA ───────── */
+#stampa { display:none; }
+@page { size:A4; margin:0; }
+@media print {
+  body { background:#fff; }
+  body > *:not(#stampa) { display:none !important; }
+  #stampa { display:block; }
+  .pagina { width:210mm; height:297mm; padding:16.5mm 10.5mm; display:grid; grid-template-columns:repeat(3,63mm); grid-template-rows:repeat(3,88mm); page-break-after:always; break-after:page; background:#fff; position:relative; }
+  .pagina:last-child { page-break-after:auto; break-after:auto; }
+  .pagina .carta { box-shadow:none; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  .pagina.retri { transform:translate(var(--dx,0mm), var(--dy,0mm)); }
+}
+@media (max-width:900px) { .layout { grid-template-columns:1fr; } .panel { position:static; height:auto; } .coppia { zoom:1.4; } }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-abiurazione" viewBox="0 0 24 24"><path d="M12 2.5 20 5.5v6.5c0 5-3.5 8.6-8 9.8-4.5-1.2-8-4.8-8-9.8V5.5z"/><path d="M12 7v9M8.5 11h7"/></symbol>
+  <symbol id="i-ammaliamento" viewBox="0 0 24 24"><path d="M12 21C5 15.5 2.5 11.5 2.5 8.3A4.8 4.8 0 0 1 12 6.4a4.8 4.8 0 0 1 9.5 1.9C21.5 11.5 19 15.5 12 21z"/></symbol>
+  <symbol id="i-divinazione" viewBox="0 0 24 24"><path d="M2 12c3-5.5 17-5.5 20 0-3 5.5-17 5.5-20 0z"/><circle cx="12" cy="12" r="3.2"/></symbol>
+  <symbol id="i-evocazione" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.2"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/></symbol>
+  <symbol id="i-illusione" viewBox="0 0 24 24"><circle cx="9" cy="12" r="6"/><circle cx="15" cy="12" r="6"/></symbol>
+  <symbol id="i-invocazione" viewBox="0 0 24 24"><path d="M12 2.5c.8 4.6 6 6.4 6 11.7a6 6 0 0 1-12 0c0-2.8 1.8-4.6 3-6.4.8 1.6 1.6 2.2 2.2 2.2C11.8 8.2 12.4 5.6 12 2.5z"/></symbol>
+  <symbol id="i-necromanzia" viewBox="0 0 24 24"><path d="M12 3C7.5 3 4.5 6 4.5 10c0 2.7 1.6 4 2.8 5v3.6h3v-2h1.4v2h1.6v-2h1.4v2h3V15c1.2-1 2.8-2.3 2.8-5 0-4-3-7-7.5-7z"/><circle cx="9" cy="10.5" r="1.5"/><circle cx="15" cy="10.5" r="1.5"/></symbol>
+  <symbol id="i-trasmutazione" viewBox="0 0 24 24"><path d="M4.5 11a8 8 0 0 1 13.8-4.3M19.5 13a8 8 0 0 1-13.8 4.3"/><path d="M18.8 2.8v4.2h-4.2M5.2 21.2V17h4.2"/></symbol>
+  <symbol id="i-altro" viewBox="0 0 24 24"><path d="M12 2.500l2.600 6.400 6.900.5-5.300 4.500 1.700 6.700L12 16.900 6.100 20.600l1.700-6.700L2.500 9.400l6.900-.5z"/></symbol>
+</svg>
+
+<header class="top">
+  <a class="brand" href="./">Dungeons &amp; Byte<small>carte degli incantesimi</small></a>
+  <span class="grow"></span>
+  <a href="./">← Biblioteca</a>
+</header>
+
+<div class="layout">
+  <aside class="panel">
+    <h2>Scegli gli incantesimi</h2>
+    <input type="search" id="q" placeholder="Cerca per nome…" autocomplete="off">
+    <select id="fClasse"><option value="">Tutte le classi</option></select>
+    <select id="fScuola"><option value="">Tutte le scuole</option></select>
+    <div class="chips" id="fLivelli" aria-label="Livello"></div>
+    <label class="nota"><input type="checkbox" id="fAvvisi"> mostra solo gli incantesimi con dati da verificare ⚠</label>
+    <div class="row">
+      <button class="btn small" id="selVisibili">Seleziona i visibili</button>
+      <button class="btn small" id="selNessuno">Deseleziona tutto</button>
+    </div>
+    <ul class="lista" id="elenco"></ul>
+  </aside>
+
+  <section class="area">
+    <div class="barra">
+      <span class="cont" id="contatore">0 carte</span>
+      <button class="btn primary" id="btnStampa">Stampa fronte-retro (A4, 9 carte)</button>
+      <label class="nota">carattere minimo del retro <select id="fmin"><option>5.6</option><option>6.0</option><option selected>6.2</option><option>6.6</option><option>7.0</option></select> pt</label>
+      <label class="nota">scarto retro: X <input type="number" id="dx" step="0.1" value="0"> Y <input type="number" id="dy" step="0.1" value="0"> mm</label>
+    </div>
+    <div class="barra">
+      <span class="nota">Mazzo:</span>
+      <select id="mazzi"><option value="">— mazzi salvati —</option></select>
+      <button class="btn small" id="mCarica">Carica</button>
+      <button class="btn small" id="mSalva">Salva come…</button>
+      <button class="btn small" id="mElimina">Elimina</button>
+      <button class="btn small" id="mEsporta">Esporta file</button>
+      <button class="btn small" id="mImporta">Importa file</button>
+      <input type="file" id="fileImporta" accept="application/json,.json" hidden>
+    </div>
+    <p class="nota">Stampa: scegli «Margini: nessuno» e «Scala: 100%» nella finestra di stampa del browser, poi stampa fronte-retro con rilegatura sul <b>lato lungo</b>. Se i retri non combaciano con i fronti usa lo «scarto retro». Le carte sono pensate per il taglio sul bordo.</p>
+    <div id="anteprima" class="anteprima"></div>
+    <div id="vuoto" class="vuoto">Spunta gli incantesimi a sinistra: qui compaiono le carte (fronte con i dati, retro con la descrizione).</div>
+  </section>
+</div>
+
+<div id="stampa"></div>
+<div class="misura" id="misura"></div>
+
+<script>
+const $ = s => document.querySelector(s);
+const SCUOLE_CLASSE = { abiurazione:'s-abiurazione', ammaliamento:'s-ammaliamento', divinazione:'s-divinazione', evocazione:'s-evocazione', illusione:'s-illusione', invocazione:'s-invocazione', necromanzia:'s-necromanzia', trasmutazione:'s-trasmutazione' };
+const state = { tutti: [], sel: new Set(), filtri: { q:'', classe:'', scuola:'', livelli:new Set(), avvisi:false }, cache: new Map() };
+const FONT_MAX = 7.8, MARGINE_PX = -0.5; let FONT_MIN = 6.2;
+
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const chiave = s => s.nome;                                  // un incantesimo e' identificato dal nome (stabile anche se il database viene ricaricato)
+const livTxt = l => l === null ? '?' : (l === 0 ? 'Trucchetto' : 'Livello ' + l);
+const scClasse = s => SCUOLE_CLASSE[(s || '').toLowerCase()] || '';
+const icona = s => '<svg class="sim"><use href="#i-' + (SCUOLE_CLASSE[(s || '').toLowerCase()] ? (s || '').toLowerCase() : 'altro') + '"/></svg>';
+
+/* ───── pulizia del testo uscito dall'OCR: "$ 3^{\circ} $" -> "3°" ───── */
+function pulisci(t) {
+  return String(t || '').replace(/\$\s*([^$]{0,24}?)\s*\$/g, (m, x) => x.replace(/\^\{?\\?(circ|o)\}?/g, '°').replace(/\\circ/g, '°').replace(/[{}\\]/g, '').replace(/\s+/g, '')).replace(/[ \t]+/g, ' ').trim();
+}
+const RE_SUP = /^(utilizz\w*[^.]{0,40}slot[^.]{0,40}superior\w*|a livelli superiori|livelli superiori|potenziamento del trucchetto|incantesimo potenziato)[^.]{0,30}\./i;
+function paragrafi(desc) {
+  const grezzi = pulisci(desc).split(/\n\s*\n|\n/).map(p => p.trim()).filter(Boolean), uniti = [];
+  // l'OCR a volte spezza una frase in due paragrafi: se il precedente non finisce con punteggiatura e il successivo inizia minuscolo, si riuniscono
+  for (const p of grezzi) { const u = uniti[uniti.length - 1]; if (u && !/[.!?:;»”")]$/.test(u) && /^[a-zàèéìòù]/.test(p)) uniti[uniti.length - 1] = u + ' ' + p; else uniti.push(p); }
+  return uniti.map(p => {
+    const m = p.match(RE_SUP);
+    return m ? { sup: true, label: m[0].replace(/\.$/, ''), testo: p.slice(m[0].length).trim() } : { sup: false, testo: p };
+  });
+}
+
+/* ───── carta: fronte e retro ───── */
+function elFronte(s, parte, parti, stampa) {
+  const d = document.createElement('div');
+  d.className = 'carta fronte ' + scClasse(s.scuola) + (stampa ? ' stampa' : '');
+  const mat = (s.componenti.match(/\(([^)]*)\)/) || [])[1] || '';
+  const comp = s.componenti.replace(/\s*\([^)]*\)/, '') || '—';
+  const portata = (s.gittata || '—') + (s.area ? ' · ' + s.area : '');
+  d.innerHTML =
+    '<div class="band">' + icona(s.scuola) + '<span class="sc">' + esc(s.scuola || '—') + '</span><span class="liv" title="' + livTxt(s.livello) + '">' + (s.livello === null ? '?' : s.livello) + '</span></div>' +
+    '<div class="nome"><span>' + esc(s.nome) + '</span></div>' +
+    '<div class="sub">' + esc(livTxt(s.livello) + (s.scuola ? ' di ' + s.scuola.toLowerCase() : '')) + '</div>' +
+    '<div class="flags">' + (s.concentrazione ? '<span>Concentrazione</span>' : '') + (s.rituale ? '<span>Rituale</span>' : '') + '</div>' +
+    '<div class="dati">' +
+      '<div class="r"><span class="k">Lancio</span><span class="v">' + esc(pulisci(s.tempo) || '—') + '</span></div>' +
+      '<div class="r"><span class="k">Gittata</span><span class="v">' + esc(pulisci(portata)) + '</span></div>' +
+      '<div class="r"><span class="k">Componenti</span><span class="v">' + esc(comp) + (mat ? '<small>' + esc(mat) + '</small>' : '') + '</span></div>' +
+      '<div class="r"><span class="k">Durata</span><span class="v">' + esc(pulisci(s.durata) || '—') + '</span></div>' +
+    '</div>' +
+    '<div class="classi"><b>Classi</b>' + esc(s.classi.join(', ') || '—') + '</div>' +
+    '<div class="foot"><span>' + esc(s.fonte) + '</span><span>' + (parti > 1 ? '(' + parte + '/' + parti + ')' : '') + '</span></div>';
+  const nm = d.querySelector('.nome span'); let pt = 11.5; nm.style.fontSize = pt + 'pt';
+  return d;
+}
+function elRetro(s, parte, parti, blocchi, stampa) {
+  const d = document.createElement('div');
+  d.className = 'carta retro ' + scClasse(s.scuola) + (stampa ? ' stampa' : '');
+  d.innerHTML =
+    '<div class="head">' + icona(s.scuola) + '<span class="t">' + esc(s.nome) + (parti > 1 ? ' (' + parte + '/' + parti + ')' : '') + '</span><span class="l">' + esc(livTxt(s.livello)) + '</span></div>' +
+    '<div class="testo"></div>' +
+    '<div class="foot"><span>' + esc(s.fonte) + '</span><span></span></div>';
+  const t = d.querySelector('.testo');
+  for (const b of blocchi) {
+    const p = document.createElement('p'); if (b.sup) p.className = 'sup';
+    p.innerHTML = (b.sup ? '<b>' + esc(b.label) + '.</b> ' : '') + esc(b.testo); t.appendChild(p);
+  }
+  return d;
+}
+
+/* ───── adattamento del testo al retro ───── */
+function adatta(carta, max = FONT_MAX, min = FONT_MIN) {
+  const t = carta.querySelector('.testo');
+  for (let pt = max; pt >= min - 0.001; pt -= 0.2) { t.style.fontSize = pt.toFixed(1) + 'pt'; if (t.scrollHeight <= t.clientHeight - MARGINE_PX) return pt; }
+  t.style.fontSize = min + 'pt'; return t.scrollHeight <= t.clientHeight - MARGINE_PX ? min : 0;
+}
+function misura(s, blocchi) {
+  const m = $('#misura'); m.innerHTML = ''; const c = elRetro(s, 1, 1, blocchi, true); m.appendChild(c); return adatta(c) > 0;
+}
+/** Spezza i blocchi in parti che stanno ciascuna nel retro al carattere minimo; parti equilibrate per quantita' di testo. */
+function dividi(s, blocchi) {
+  if (misura(s, blocchi)) return [blocchi];
+  const frasi = [];
+  for (const b of blocchi) {
+    const f = b.testo.split(/(?<=[.!?;:])\s+/).filter(Boolean);
+    f.forEach((x, i) => frasi.push({ sup: b.sup, label: i === 0 ? b.label : null, testo: x, nuovo: i === 0 }));
+  }
+  const ricomponi = arr => {
+    const out = [];
+    for (const f of arr) {
+      const ult = out[out.length - 1];
+      if (!f.nuovo && ult && ult.sup === f.sup) ult.testo += ' ' + f.testo;
+      else out.push({ sup: f.sup, label: f.label, testo: f.testo });
+    }
+    return out;
+  };
+  // greedy: quante parti servono
+  let n = 1, i = 0; const tutteFits = (a, b) => misura(s, ricomponi(frasi.slice(a, b)));
+  let parti = 0;
+  while (i < frasi.length) { let lo = i + 1, hi = frasi.length; while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (tutteFits(i, mid)) lo = mid; else hi = mid - 1; } i = lo; parti++; if (parti > 6) break; }
+  n = Math.max(2, parti);
+  // equilibrio: n parti con ~uguale numero di caratteri
+  const tot = frasi.reduce((a, f) => a + f.testo.length, 0); const out = []; let acc = 0, ini = 0;
+  for (let k = 1; k <= n; k++) {
+    let fine = ini; const soglia = tot * k / n;
+    while (fine < frasi.length && (acc + frasi[fine].testo.length <= soglia || fine === ini)) { acc += frasi[fine].testo.length; fine++; }
+    if (k === n) fine = frasi.length;
+    out.push(frasi.slice(ini, fine)); ini = fine;
+  }
+  const eq = out.filter(p => p.length).map(p => ricomponi(p));
+  if (eq.every(b => misura(s, b))) return eq;
+  const gr = []; i = 0;
+  while (i < frasi.length) { let lo = i + 1, hi = frasi.length; while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (tutteFits(i, mid)) lo = mid; else hi = mid - 1; } gr.push(ricomponi(frasi.slice(i, lo))); i = lo; }
+  return gr;
+}
+function partiDi(s) {
+  if (state.cache.has(s.nome)) return state.cache.get(s.nome);
+  const r = dividi(s, paragrafi(s.descrizione)); state.cache.set(s.nome, r); return r;
+}
+function fitNome(el) {
+  for (const d of el.querySelectorAll('.carta.fronte .nome')) { const sp = d.querySelector('span'); let pt = 11.5; sp.style.fontSize = pt + 'pt'; while (pt > 7.5 && (d.scrollHeight > d.clientHeight + 0.5 || sp.scrollWidth > d.clientWidth)) { pt -= 0.4; sp.style.fontSize = pt + 'pt'; } }
+}
+
+/* ───── elenco e filtri ───── */
+function visibili() {
+  const f = state.filtri, q = f.q.trim().toLowerCase();
+  return state.tutti.filter(s => (!q || s.nome.toLowerCase().includes(q)) && (!f.classe || s.classi.includes(f.classe)) && (!f.scuola || s.scuola === f.scuola) &&
+    (!f.livelli.size || f.livelli.has(s.livello)) && (!f.avvisi || s.avvisi.length));
+}
+function disegnaElenco() {
+  const v = visibili(), ul = $('#elenco'); ul.innerHTML = '';
+  const frag = document.createDocumentFragment();
+  for (const s of v) {
+    const li = document.createElement('li'), k = chiave(s);
+    li.innerHTML = '<label><input type="checkbox" ' + (state.sel.has(k) ? 'checked' : '') + '><span class="nome">' + esc(s.nome) + (s.avvisi.length ? ' <span class="avv" title="' + esc(s.avvisi.join('; ')) + '">⚠</span>' : '') + '</span><span class="meta">' + (s.livello === 0 ? 'T' : s.livello) + ' · ' + esc(s.scuola) + '</span></label>';
+    li.querySelector('input').addEventListener('change', e => { e.target.checked ? state.sel.add(k) : state.sel.delete(k); salvaSel(); anteprima(); });
+    frag.appendChild(li);
+  }
+  ul.appendChild(frag);
+}
+let tmr;
+function anteprima() {
+  clearTimeout(tmr); tmr = setTimeout(async () => {
+    await document.fonts.ready;
+    const sel = state.tutti.filter(s => state.sel.has(chiave(s)));
+    $('#contatore').textContent = sel.length + (sel.length === 1 ? ' incantesimo' : ' incantesimi');
+    $('#vuoto').hidden = sel.length > 0; const box = $('#anteprima'); box.innerHTML = '';
+    let schede = 0;
+    for (const s of sel) {
+      const parti = partiDi(s);
+      parti.forEach((bl, i) => {
+        schede++; const c = document.createElement('div'); c.className = 'coppia';
+        const r = elRetro(s, i + 1, parti.length, bl, false); c.appendChild(elFronte(s, i + 1, parti.length, false)); c.appendChild(r); box.appendChild(c); adatta(r);
+      });
+    }
+    fitNome(box);
+    $('#contatore').textContent = sel.length + (sel.length === 1 ? ' incantesimo' : ' incantesimi') + (schede !== sel.length ? ' (' + schede + ' carte)' : '');
+  }, 120);
+}
+
+/* ───── selezione e mazzi (nel browser) ───── */
+const LS = { sel:'dnb_carte_selezione', mazzi:'dnb_carte_mazzi' };
+const leggi = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch (e) { return d; } };
+const scrivi = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
+const salvaSel = () => scrivi(LS.sel, [...state.sel]);
+function disegnaMazzi() { const m = leggi(LS.mazzi, {}), s = $('#mazzi'); s.innerHTML = '<option value="">— mazzi salvati —</option>'; Object.keys(m).sort().forEach(n => s.insertAdjacentHTML('beforeend', '<option>' + esc(n) + '</option>')); }
+function applicaSel(nomi) { const ok = new Set(state.tutti.map(chiave)); state.sel = new Set(nomi.filter(n => ok.has(n))); salvaSel(); disegnaElenco(); anteprima(); }
+
+/* ───── stampa ───── */
+async function stampa() {
+  await document.fonts.ready;
+  const sel = state.tutti.filter(s => state.sel.has(chiave(s))); if (!sel.length) return alert('Nessun incantesimo selezionato.');
+  const fronti = [], retri = [];
+  for (const s of sel) { const parti = partiDi(s); parti.forEach((bl, i) => { fronti.push(elFronte(s, i + 1, parti.length, true)); retri.push(elRetro(s, i + 1, parti.length, bl, true)); }); }
+  const box = $('#stampa'); box.innerHTML = '';
+  const dx = parseFloat($('#dx').value) || 0, dy = parseFloat($('#dy').value) || 0;
+  for (let p = 0; p < fronti.length; p += 9) {
+    const pf = document.createElement('div'); pf.className = 'pagina'; const pr = document.createElement('div'); pr.className = 'pagina retri'; pr.style.setProperty('--dx', dx + 'mm'); pr.style.setProperty('--dy', dy + 'mm');
+    for (let i = 0; i < 9; i++) pf.appendChild(fronti[p + i] || document.createElement('div'));
+    for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) { const idx = p + r * 3 + (2 - c); pr.appendChild(retri[idx] || document.createElement('div')); }   // colonne specchiate: combaciano voltando sul lato lungo
+    box.appendChild(pf); box.appendChild(pr);
+  }
+  box.style.display = 'block'; retri.forEach(c => adatta(c)); fitNome(box); box.style.display = '';
+  setTimeout(() => window.print(), 50);
+}
+
+/* ───── avvio ───── */
+async function avvia() {
+  let d;
+  try { const r = await fetch('spells.php', { credentials: 'same-origin' }); if (r.status === 401) { location.href = './'; return; } d = await r.json(); if (!r.ok) throw new Error(d.error || r.status); }
+  catch (e) { $('#vuoto').textContent = 'Impossibile caricare gli incantesimi: ' + e.message; return; }
+  state.tutti = d.incantesimi;
+  const classi = [...new Set(state.tutti.flatMap(s => s.classi))].sort(), scuole = [...new Set(state.tutti.map(s => s.scuola).filter(Boolean))].sort();
+  classi.forEach(c => $('#fClasse').insertAdjacentHTML('beforeend', '<option>' + esc(c) + '</option>'));
+  scuole.forEach(c => $('#fScuola').insertAdjacentHTML('beforeend', '<option>' + esc(c) + '</option>'));
+  const lv = $('#fLivelli'); for (let i = 0; i <= 9; i++) { const b = document.createElement('button'); b.type = 'button'; b.className = 'chip'; b.textContent = i === 0 ? 'T' : i; b.title = livTxt(i); b.setAttribute('aria-pressed', 'false');
+    b.onclick = () => { const on = b.getAttribute('aria-pressed') !== 'true'; b.setAttribute('aria-pressed', on); on ? state.filtri.livelli.add(i) : state.filtri.livelli.delete(i); disegnaElenco(); }; lv.appendChild(b); }
+  $('#q').addEventListener('input', e => { state.filtri.q = e.target.value; disegnaElenco(); });
+  $('#fClasse').onchange = e => { state.filtri.classe = e.target.value; disegnaElenco(); };
+  $('#fScuola').onchange = e => { state.filtri.scuola = e.target.value; disegnaElenco(); };
+  $('#fAvvisi').onchange = e => { state.filtri.avvisi = e.target.checked; disegnaElenco(); };
+  $('#selVisibili').onclick = () => { visibili().forEach(s => state.sel.add(chiave(s))); salvaSel(); disegnaElenco(); anteprima(); };
+  $('#selNessuno').onclick = () => { state.sel.clear(); salvaSel(); disegnaElenco(); anteprima(); };
+  $('#btnStampa').onclick = stampa;
+  $('#fmin').onchange = e => { FONT_MIN = parseFloat(e.target.value); state.cache.clear(); anteprima(); };
+  $('#mSalva').onclick = () => { const n = (prompt('Nome del mazzo:') || '').trim(); if (!n) return; const m = leggi(LS.mazzi, {}); m[n] = [...state.sel]; scrivi(LS.mazzi, m); disegnaMazzi(); $('#mazzi').value = n; };
+  $('#mCarica').onclick = () => { const n = $('#mazzi').value, m = leggi(LS.mazzi, {}); if (n && m[n]) applicaSel(m[n]); };
+  $('#mElimina').onclick = () => { const n = $('#mazzi').value; if (!n || !confirm('Eliminare il mazzo «' + n + '»?')) return; const m = leggi(LS.mazzi, {}); delete m[n]; scrivi(LS.mazzi, m); disegnaMazzi(); };
+  $('#mEsporta').onclick = () => { const blob = new Blob([JSON.stringify({ mazzo: [...state.sel] }, null, 1)], { type: 'application/json' }), a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'mazzo-incantesimi.json'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); };
+  $('#mImporta').onclick = () => $('#fileImporta').click();
+  $('#fileImporta').onchange = async e => { try { const j = JSON.parse(await e.target.files[0].text()); applicaSel(Array.isArray(j) ? j : (j.mazzo || [])); } catch (er) { alert('File non valido.'); } e.target.value = ''; };
+  disegnaMazzi(); applicaSel(leggi(LS.sel, []));
+}
+avvia();
+</script>
+</body>
+</html>

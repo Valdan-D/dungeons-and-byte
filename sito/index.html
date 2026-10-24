@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0d0a05">
+<meta name="robots" content="noindex, nofollow">
+<title>Dungeons &amp; Byte — Archivio Antico</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M50 6 90 30v40L50 94 10 70V30z' fill='%230d0a05' stroke='%23c9a84c' stroke-width='6'/%3E%3Ctext x='50' y='64' font-size='40' text-anchor='middle' fill='%23c9a84c' font-family='serif'%3E20%3C/text%3E%3C/svg%3E">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Crimson+Pro:ital,wght@0,400;0,600;0,700;1,400;1,600&family=UnifrakturMaguntia&family=IM+Fell+English:ital@0;1&display=swap" rel="stylesheet">
+<style>
+:root {
+  --parchment:#f2e8c9; --parchment-dark:#e8d9a8; --parchment-darker:#d9c57e;
+  --gold:#c9a84c; --gold-light:#e8c96a; --ink:#1a1208; --ink-light:#3d2b10;
+  --blood:#8b1a1a; --blood-dark:#5c0f0f; --bg:#0d0a05; --bg-mid:#1a1208; --bg-card:#17110a;
+  --line:rgba(201,168,76,.28);
+  --page-bg:var(--parchment); --page-ink:var(--ink); --page-head:var(--blood-dark); --page-line:rgba(139,26,26,.3);
+  --read-size:1.2rem;
+  --top-h:60px;
+}
+html[data-reader="notte"] {
+  --page-bg:#16110a; --page-ink:#e6dcc0; --page-head:var(--gold-light); --page-line:rgba(201,168,76,.3);
+}
+* { box-sizing:border-box; margin:0; padding:0; }
+html { scroll-behavior:smooth; }
+body {
+  background:var(--bg); color:var(--parchment); font-family:'Crimson Pro',serif; min-height:100vh;
+  background-image:radial-gradient(ellipse at 15% 40%, rgba(139,26,26,.10) 0, transparent 55%),
+                   radial-gradient(ellipse at 85% 15%, rgba(201,168,76,.07) 0, transparent 50%);
+  background-attachment:fixed;
+}
+button { font:inherit; cursor:pointer; color:inherit; }
+a { color:var(--gold-light); }
+::selection { background:rgba(201,168,76,.4); }
+.hidden { display:none !important; }
+.sr { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); }
+
+/* ─── TOPBAR ─── */
+.topbar {
+  position:sticky; top:0; z-index:50; height:var(--top-h); display:flex; align-items:center; gap:14px;
+  padding:0 20px; background:rgba(13,10,5,.92); backdrop-filter:blur(8px); border-bottom:1px solid var(--line);
+}
+.brand { font-family:'UnifrakturMaguntia',cursive; font-size:1.7rem; color:var(--gold); text-decoration:none; white-space:nowrap; text-shadow:1px 1px 0 var(--blood-dark); }
+.brand small { font-family:'IM Fell English',serif; font-style:italic; font-size:.8rem; color:var(--parchment-dark); opacity:.6; margin-left:8px; letter-spacing:2px; text-transform:uppercase; }
+.search-box { flex:1; max-width:560px; margin:0 auto; position:relative; display:flex; align-items:center; }
+.search-box input {
+  width:100%; padding:9px 70px 9px 38px; background:var(--bg-mid); border:1px solid var(--line); border-radius:22px;
+  color:var(--parchment); font:1rem 'Crimson Pro',serif; outline:none; transition:border-color .2s, box-shadow .2s;
+}
+.search-box input:focus { border-color:var(--gold); box-shadow:0 0 0 3px rgba(201,168,76,.15); }
+.search-box .ico { position:absolute; left:13px; color:var(--gold); opacity:.7; pointer-events:none; }
+.search-box input::-webkit-search-cancel-button { -webkit-appearance:none; appearance:none; }
+.search-box kbd { position:absolute; right:12px; font:.72rem 'Cinzel',serif; color:var(--gold); border:1px solid var(--line); border-radius:4px; padding:1px 6px; opacity:.6; }
+.scope { position:absolute; right:10px; top:50%; transform:translateY(-50%); font:.72rem 'Cinzel',serif; letter-spacing:.5px; color:var(--gold); background:rgba(201,168,76,.12); border:1px solid var(--line); border-radius:12px; padding:2px 9px; }
+.top-actions { display:flex; gap:8px; }
+.icon-btn {
+  background:transparent; border:1px solid var(--line); color:var(--gold); width:38px; height:38px; border-radius:50%;
+  display:grid; place-items:center; font-size:1.1rem; transition:all .2s;
+}
+.icon-btn:hover { background:var(--gold); color:var(--ink); transform:translateY(-1px); }
+.icon-btn[aria-pressed="true"] { background:rgba(201,168,76,.2); }
+
+/* ─── HERO ─── */
+.hero { position:relative; text-align:center; padding:70px 20px 56px; border-bottom:2px solid var(--gold); overflow:hidden;
+  background:linear-gradient(180deg, rgba(139,26,26,.18) 0%, transparent 100%); }
+.hero h1 { font-family:'UnifrakturMaguntia',cursive; font-weight:400; font-size:clamp(3rem,9vw,6.4rem); line-height:1; color:var(--gold);
+  text-shadow:0 0 40px rgba(201,168,76,.45), 3px 3px 0 var(--blood-dark); }
+.hero .tag { font-family:'IM Fell English',serif; font-style:italic; text-transform:uppercase; letter-spacing:4px; color:var(--parchment-dark); opacity:.85; margin-top:14px; font-size:1.05rem; }
+.hero p.lead { max-width:640px; margin:22px auto 0; font-size:1.25rem; line-height:1.55; color:var(--parchment-dark); opacity:.9; }
+.hero .cta { display:flex; flex-wrap:wrap; gap:12px; justify-content:center; margin-top:30px; }
+.btn {
+  font-family:'Cinzel',serif; letter-spacing:1px; font-size:.9rem; padding:11px 22px; border-radius:3px; border:1px solid var(--gold);
+  background:transparent; color:var(--gold); transition:all .2s; text-decoration:none; display:inline-flex; align-items:center; gap:8px;
+}
+.btn:hover { background:var(--gold); color:var(--ink); box-shadow:0 4px 18px rgba(201,168,76,.3); }
+.btn.primary { background:linear-gradient(180deg, var(--blood) 0%, var(--blood-dark) 100%); border-color:var(--gold); color:var(--parchment); }
+.btn.primary:hover { background:linear-gradient(180deg, #a32121 0%, var(--blood) 100%); color:#fff; }
+.hero-search { max-width:560px; margin:30px auto 0; }
+.hero-search .search-box { max-width:none; }
+.hero-search .search-box input { padding:14px 22px 14px 44px; font-size:1.15rem; border-radius:30px; }
+.hero-search .search-box .ico { left:17px; font-size:1.1rem; }
+.embers span { position:absolute; bottom:-10px; width:4px; height:4px; border-radius:50%; background:var(--gold-light); opacity:0;
+  box-shadow:0 0 8px 2px rgba(232,201,106,.6); animation:ember linear infinite; }
+@keyframes ember { 0% { transform:translateY(0) translateX(0); opacity:0; } 10% { opacity:.9; } 100% { transform:translateY(-420px) translateX(40px); opacity:0; } }
+@media (prefers-reduced-motion:reduce) { .embers { display:none; } * { animation:none !important; transition:none !important; scroll-behavior:auto !important; } }
+
+.stats { display:flex; justify-content:center; flex-wrap:wrap; gap:14px 44px; padding:30px 20px; border-bottom:1px solid var(--line); }
+.stat { text-align:center; }
+.stat b { display:block; font-family:'Cinzel',serif; font-size:2rem; color:var(--gold-light); font-weight:700; }
+.stat span { font-family:'IM Fell English',serif; font-style:italic; color:var(--parchment-dark); opacity:.7; letter-spacing:1px; }
+
+section.block { max-width:1240px; margin:0 auto; padding:46px 24px 10px; }
+.block h2 { font-family:'Cinzel',serif; color:var(--gold); font-size:1.5rem; letter-spacing:2px; text-transform:uppercase; display:flex; align-items:center; gap:16px; }
+.block h2::after { content:''; flex:1; height:1px; background:linear-gradient(90deg, var(--gold), transparent); }
+.block .sub { color:var(--parchment-dark); opacity:.7; font-style:italic; margin:6px 0 0; font-family:'IM Fell English',serif; }
+
+.filters { display:flex; flex-wrap:wrap; gap:8px; margin:22px 0 4px; }
+.chip { font:.78rem 'Cinzel',serif; letter-spacing:1px; padding:6px 14px; border-radius:20px; background:transparent; border:1px solid var(--line); color:var(--parchment-dark); transition:all .2s; }
+.chip:hover { border-color:var(--gold); color:var(--gold); }
+.chip.on { background:var(--gold); color:var(--ink); border-color:var(--gold); }
+
+.shelf { display:grid; grid-template-columns:repeat(auto-fill, minmax(250px,1fr)); gap:24px; padding:22px 0 10px; }
+.book {
+  position:relative; display:flex; flex-direction:column; background:var(--bg-card); border:1px solid var(--line); border-radius:4px; overflow:hidden;
+  text-decoration:none; color:inherit; transition:transform .25s, box-shadow .25s, border-color .25s;
+}
+.book:hover { transform:translateY(-5px); border-color:var(--gold); box-shadow:0 14px 34px rgba(0,0,0,.6), 0 0 0 1px rgba(201,168,76,.25); }
+.cover { aspect-ratio:3/2.1; background:linear-gradient(135deg, #3a1010, #120a05); position:relative; overflow:hidden; display:grid; place-items:center; }
+.cover img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; object-position:top; transition:transform .5s; filter:saturate(.95) contrast(1.02); }
+.book:hover .cover img { transform:scale(1.05); }
+.cover::after { content:''; position:absolute; inset:0; background:linear-gradient(180deg, transparent 45%, rgba(13,10,5,.9) 100%); }
+.sigil { font-family:'UnifrakturMaguntia',cursive; font-size:4.2rem; color:var(--gold); opacity:.55; text-shadow:0 0 20px rgba(201,168,76,.5); }
+.badges { position:absolute; top:10px; left:10px; z-index:2; display:flex; gap:6px; flex-wrap:wrap; }
+.badge { font:.66rem 'Cinzel',serif; letter-spacing:1px; text-transform:uppercase; padding:3px 8px; border-radius:3px; background:rgba(13,10,5,.85); border:1px solid var(--line); color:var(--gold-light); }
+.badge.k-avventura { color:#f0b8a0; } .badge.k-regolamento { color:#a8d4a0; } .badge.era { color:var(--parchment-dark); } .badge.epub { color:#9cc4e8; }
+.book-body { padding:14px 16px 16px; display:flex; flex-direction:column; gap:8px; flex:1; }
+.book h3 { font-family:'Cinzel',serif; font-size:1.02rem; line-height:1.3; color:var(--gold-light); font-weight:600; }
+.meta { display:flex; flex-wrap:wrap; gap:4px 14px; font-size:.92rem; color:var(--parchment-dark); opacity:.75; }
+.resume { margin-top:auto; font-size:.9rem; font-style:italic; color:var(--gold); border-top:1px dashed var(--line); padding-top:8px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+.pipeline { display:grid; grid-template-columns:repeat(auto-fit, minmax(190px,1fr)); gap:0; margin:26px 0 8px; counter-reset:step; }
+.step { position:relative; padding:20px 18px 22px; border:1px solid var(--line); background:rgba(23,17,10,.7); margin-left:-1px; counter-increment:step; }
+.step::before { content:counter(step, upper-roman); position:absolute; top:10px; right:14px; font:700 1.6rem 'Cinzel',serif; color:var(--gold); opacity:.18; }
+.step .g { font-size:1.8rem; display:block; margin-bottom:8px; }
+.step h4 { font:600 .98rem 'Cinzel',serif; color:var(--gold-light); letter-spacing:1px; margin-bottom:6px; }
+.step p { font-size:1rem; line-height:1.45; color:var(--parchment-dark); opacity:.85; }
+.note-box { margin:20px 0 4px; padding:16px 20px; border-left:3px solid var(--blood); background:rgba(139,26,26,.1); color:var(--parchment-dark); font-size:1.05rem; line-height:1.5; }
+.note-box a { font-family:'Cinzel',serif; font-size:.9rem; }
+
+footer { text-align:center; padding:50px 20px 40px; color:rgba(201,168,76,.45); font:italic .95rem 'IM Fell English',serif; }
+footer a { color:inherit; }
+
+.banner { max-width:1240px; margin:22px auto 0; padding:12px 24px; background:rgba(201,168,76,.08); border:1px solid var(--line); border-radius:4px; display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+
+/* ─── READER ─── */
+#viewReader { display:flex; height:calc(100vh - var(--top-h)); }
+.sidebar { width:330px; flex:none; display:flex; flex-direction:column; background:var(--bg-mid); border-right:1px solid var(--line); }
+.side-head { padding:14px 14px 10px; border-bottom:1px solid var(--line); }
+.side-head h2 { font:600 .95rem 'Cinzel',serif; color:var(--gold-light); line-height:1.3; margin-bottom:10px; }
+.side-head input { width:100%; padding:8px 12px; background:var(--bg); border:1px solid var(--line); border-radius:3px; color:var(--parchment); font:.95rem 'Crimson Pro',serif; outline:none; }
+.side-head input:focus { border-color:var(--gold); }
+.side-count { font:.75rem 'IM Fell English',serif; font-style:italic; color:var(--gold); opacity:.6; margin-top:7px; }
+#chapterList { flex:1; overflow-y:auto; list-style:none; scrollbar-width:thin; scrollbar-color:var(--gold) var(--bg-mid); }
+#chapterList li { display:flex; gap:10px; padding:8px 14px; cursor:pointer; border-bottom:1px solid rgba(201,168,76,.07); content-visibility:auto; contain-intrinsic-size:auto 38px; transition:background .15s; }
+#chapterList li:hover { background:rgba(201,168,76,.08); }
+#chapterList li.on { background:rgba(139,26,26,.28); border-left:3px solid var(--gold); padding-left:11px; }
+#chapterList li.tiny .t { opacity:.55; }
+#chapterList .n { font:.72rem 'Cinzel',serif; color:var(--gold); opacity:.5; min-width:34px; padding-top:3px; }
+#chapterList .t { font-size:.98rem; line-height:1.3; color:var(--parchment-dark); }
+#chapterList li.on .t { color:var(--parchment); }
+.read-main { flex:1; min-width:0; display:flex; flex-direction:column; }
+.read-bar { display:flex; align-items:center; gap:10px; padding:8px 18px; border-bottom:1px solid var(--line); background:rgba(26,18,8,.85); flex-wrap:wrap; }
+.read-bar .crumb { flex:1; min-width:140px; font:.82rem 'Cinzel',serif; letter-spacing:.5px; color:var(--parchment-dark); opacity:.8; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.read-bar .crumb a { text-decoration:none; }
+.mini { background:transparent; border:1px solid var(--line); color:var(--gold); border-radius:3px; padding:4px 10px; font:.8rem 'Cinzel',serif; transition:all .15s; }
+.mini:hover { background:var(--gold); color:var(--ink); }
+.read-scroll { flex:1; overflow-y:auto; scroll-behavior:auto; scrollbar-width:thin; scrollbar-color:var(--gold) var(--bg-mid); }
+.paper { max-width:820px; margin:26px auto; background:var(--page-bg); color:var(--page-ink); border:1px solid var(--parchment-darker); border-radius:3px;
+  box-shadow:0 6px 40px rgba(0,0,0,.55), inset 0 0 80px rgba(139,26,26,.07); padding:44px 54px 36px; min-height:60vh; }
+html[data-reader="notte"] .paper { border-color:var(--line); box-shadow:0 6px 40px rgba(0,0,0,.7); }
+.md { font-size:var(--read-size); line-height:1.7; }
+.md h1,.md h2,.md h3,.md h4 { font-family:'Cinzel',serif; color:var(--page-head); line-height:1.25; margin:1.4em 0 .55em; }
+.md h1 { font-size:1.9em; border-bottom:2px solid var(--page-line); padding-bottom:.25em; margin-top:.2em; }
+.md h2 { font-size:1.5em; border-bottom:1px solid var(--page-line); padding-bottom:.2em; margin-top:.2em; }
+.md h3 { font-size:1.2em; } .md h4 { font-size:1.05em; font-style:italic; }
+.md > :first-child { margin-top:0; }
+.md p { margin:.75em 0; text-align:justify; hyphens:auto; }
+.md ul,.md ol { margin:.7em 0 .7em 1.5em; } .md li { margin:.2em 0; }
+.md hr { border:none; height:1px; background:var(--page-line); margin:1.4em 0; }
+.md blockquote { border-left:3px solid var(--page-head); padding:.2em 1em; margin:1em 0; opacity:.9; font-style:italic; }
+.md a { color:var(--blood); } html[data-reader="notte"] .md a { color:var(--gold-light); }
+.md img { display:block; max-width:100%; height:auto; margin:1em auto; border-radius:2px; box-shadow:0 3px 14px rgba(0,0,0,.35); cursor:zoom-in; }
+.md .c { text-align:center; }
+.md .tw { overflow-x:auto; margin:1em 0; }
+.md table { border-collapse:collapse; width:100%; font-size:.88em; line-height:1.4; }
+.md td,.md th { border:1px solid var(--page-line); padding:5px 9px; vertical-align:top; }
+.md tr:first-child td { font-weight:600; }
+.md tr:nth-child(even) td { background:rgba(139,26,26,.05); }
+html[data-reader="notte"] .md tr:nth-child(even) td { background:rgba(201,168,76,.05); }
+.md mark { background:rgba(232,201,106,.65); color:inherit; border-radius:2px; padding:0 1px; }
+.pager { max-width:820px; margin:0 auto 40px; display:flex; justify-content:space-between; gap:12px; padding:0 4px; }
+.pager button { font-family:'Cinzel',serif; letter-spacing:1px; padding:10px 22px; background:transparent; border:1px solid var(--gold); color:var(--gold); border-radius:3px; transition:all .2s; }
+.pager button:hover:not(:disabled) { background:var(--gold); color:var(--ink); }
+.pager button:disabled { opacity:.25; cursor:default; }
+.welcome { text-align:center; padding:40px 10px; }
+.welcome img { max-width:280px; border-radius:3px; box-shadow:0 8px 30px rgba(0,0,0,.5); margin:0 auto 20px; cursor:default; }
+.welcome h2 { border:none; margin:0 0 6px; font-size:1.7rem; }
+.welcome p { opacity:.8; margin:.4em 0; text-align:center; }
+.loading { text-align:center; padding:80px 20px; font:italic 1.1rem 'IM Fell English',serif; opacity:.6; }
+.loading::before { content:'⚔'; display:block; font-size:2rem; margin-bottom:10px; animation:spin 1.6s linear infinite; font-style:normal; }
+@keyframes spin { to { transform:rotate(360deg); } }
+#sideToggle { display:none; }
+
+/* ─── SEARCH RESULTS ─── */
+#viewSearch .wrap { max-width:900px; margin:0 auto; padding:34px 24px 60px; }
+#viewSearch h2 { font:600 1.4rem 'Cinzel',serif; color:var(--gold); margin-bottom:6px; letter-spacing:1px; }
+.hit { display:block; padding:16px 18px; margin:12px 0; background:var(--bg-card); border:1px solid var(--line); border-left:3px solid var(--blood); border-radius:3px; text-decoration:none; color:inherit; transition:all .2s; }
+.hit:hover { border-color:var(--gold); border-left-color:var(--gold); transform:translateX(4px); }
+.hit .src { font:.7rem 'Cinzel',serif; letter-spacing:1px; color:var(--gold); text-transform:uppercase; opacity:.8; }
+.hit h3 { font:600 1.1rem 'Cinzel',serif; color:var(--gold-light); margin:4px 0 6px; }
+.hit p { font-size:1.02rem; line-height:1.5; color:var(--parchment-dark); opacity:.85; }
+.hit mark { background:rgba(232,201,106,.35); color:var(--gold-light); border-radius:2px; }
+.empty { text-align:center; padding:60px 20px; font:italic 1.2rem 'IM Fell English',serif; opacity:.7; }
+
+/* ─── DADI ─── */
+.dice-panel { position:fixed; right:18px; bottom:18px; z-index:70; width:min(340px, calc(100vw - 36px)); background:linear-gradient(180deg,#1f160b,#120d06); border:1px solid var(--gold); border-radius:6px;
+  box-shadow:0 14px 50px rgba(0,0,0,.8); padding:16px; transform:translateY(20px); opacity:0; pointer-events:none; transition:all .25s; }
+.dice-panel.open { transform:none; opacity:1; pointer-events:auto; }
+.dice-panel h4 { font:600 .9rem 'Cinzel',serif; letter-spacing:2px; color:var(--gold); text-transform:uppercase; display:flex; justify-content:space-between; align-items:center; }
+.dice-panel h4 button { background:none; border:none; color:var(--gold); font-size:1.1rem; }
+.dgrid { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin:12px 0; }
+.dgrid button { background:transparent; border:1px solid var(--line); color:var(--gold-light); padding:8px 0; border-radius:3px; font:600 .85rem 'Cinzel',serif; transition:all .15s; }
+.dgrid button:hover { background:var(--gold); color:var(--ink); }
+.dgrid button.on { background:var(--blood); border-color:var(--gold); color:#fff; }
+.drow { display:flex; align-items:center; gap:8px; font:.85rem 'Cinzel',serif; color:var(--parchment-dark); margin-bottom:10px; flex-wrap:wrap; }
+.drow input[type=number] { width:56px; padding:5px; background:var(--bg); border:1px solid var(--line); color:var(--parchment); border-radius:3px; font:1rem 'Crimson Pro',serif; text-align:center; }
+.drow label { display:flex; align-items:center; gap:4px; }
+.die { height:96px; display:grid; place-items:center; margin:6px 0; position:relative; }
+.die svg { width:92px; height:92px; filter:drop-shadow(0 0 12px rgba(201,168,76,.25)); }
+.die b { position:absolute; font:700 1.9rem 'Cinzel',serif; color:var(--gold-light); }
+.die.rolling svg { animation:tumble .55s ease-out; }
+.die.crit svg { filter:drop-shadow(0 0 22px rgba(232,201,106,.95)); } .die.crit b { color:#fff6c8; }
+.die.fumble svg { filter:drop-shadow(0 0 22px rgba(190,30,30,.95)); } .die.fumble b { color:#ff8a8a; }
+@keyframes tumble { 0% { transform:rotate(0) scale(.5); } 60% { transform:rotate(380deg) scale(1.15); } 100% { transform:rotate(360deg) scale(1); } }
+.dres { text-align:center; font-size:1.05rem; min-height:1.6em; color:var(--parchment-dark); }
+.dhist { margin-top:8px; padding-top:8px; border-top:1px dashed var(--line); font-size:.92rem; color:var(--parchment-dark); opacity:.75; max-height:92px; overflow:auto; }
+.dhist div { padding:1px 0; }
+
+/* ─── LOGIN / LIGHTBOX ─── */
+.overlay { position:fixed; inset:0; z-index:90; background:rgba(5,3,1,.88); display:none; align-items:center; justify-content:center; padding:20px; backdrop-filter:blur(3px); }
+.overlay.open { display:flex; }
+.login { width:min(400px,100%); text-align:center; background:linear-gradient(180deg,#1f160b,#120d06); border:1px solid var(--gold); border-radius:6px; padding:34px 28px 28px; box-shadow:0 20px 70px #000; }
+.login h2 { font-family:'UnifrakturMaguntia',cursive; font-weight:400; font-size:2.3rem; color:var(--gold); }
+.login p { margin:8px 0 20px; color:var(--parchment-dark); opacity:.8; font-style:italic; }
+.login input { width:100%; padding:12px 14px; background:var(--bg); border:1px solid var(--line); color:var(--parchment); border-radius:3px; font:1.1rem 'Crimson Pro',serif; text-align:center; outline:none; }
+.login input:focus { border-color:var(--gold); }
+.login .btn { width:100%; justify-content:center; margin-top:14px; }
+.login .err { color:#ff8a8a; min-height:1.4em; margin-top:10px; font-size:.95rem; }
+.login .link { background:none; border:none; color:var(--gold); text-decoration:underline; font-size:.9rem; margin-top:12px; opacity:.8; }
+#lightbox { cursor:zoom-out; } #lightbox img { max-width:96vw; max-height:94vh; border-radius:3px; box-shadow:0 10px 60px #000; }
+
+/* ─── RESPONSIVE ─── */
+@media (max-width:900px) {
+  .brand small { display:none; } .topbar { padding:0 12px; gap:8px; }
+  .search-box kbd { display:none; } .search-box input { padding-right:14px; }
+  .scope { display:none; }
+  #sideToggle { display:inline-block; }
+  .sidebar { position:fixed; z-index:40; top:var(--top-h); bottom:0; left:0; width:min(330px,88vw); transform:translateX(-102%); transition:transform .25s; box-shadow:10px 0 40px rgba(0,0,0,.6); }
+  .sidebar.open { transform:none; }
+  .paper { margin:0; border-radius:0; padding:26px 20px 22px; border-left:none; border-right:none; }
+  .md p { text-align:left; }
+}
+@media (max-width:560px) {
+  .brand { font-size:1.35rem; } .hero { padding:46px 16px 40px; } .hero .tag { letter-spacing:2px; font-size:.85rem; }
+  .shelf { grid-template-columns:1fr 1fr; gap:12px; } .book h3 { font-size:.88rem; } .meta { font-size:.8rem; } .badge { font-size:.58rem; padding:2px 6px; }
+  .sigil { font-size:3rem; } .stat b { font-size:1.5rem; } .stats { gap:12px 26px; }
+  .top-actions .icon-btn { width:34px; height:34px; }
+}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <a class="brand" href="#/">Dungeons &amp; Byte<small>Archivio</small></a>
+  <form class="search-box" id="searchForm" role="search" autocomplete="off">
+    <span class="ico">⌕</span>
+    <label class="sr" for="q">Cerca</label>
+    <input id="q" type="search" placeholder="Cerca in tutti i volumi…  (es. palla di fuoco)" enterkeyhint="search">
+    <kbd id="kbd">/</kbd>
+    <button type="button" class="scope hidden" id="scope" title="Cerca solo in questo volume. Clic per cercare ovunque.">solo questo libro ✓</button>
+  </form>
+  <div class="top-actions">
+    <button class="icon-btn" id="btnRandom" title="Pagina a caso" aria-label="Pagina a caso">⚄</button>
+    <button class="icon-btn" id="btnDice" title="Tira i dadi (D)" aria-label="Dadi" aria-pressed="false">⚀</button>
+    <button class="icon-btn hidden" id="btnCarte" title="Carte degli incantesimi" aria-label="Carte degli incantesimi">🃏</button>
+    <button class="icon-btn hidden" id="btnLogout" title="Esci" aria-label="Esci">⎋</button>
+  </div>
+</header>
+
+<!-- ═══ HOME ═══ -->
+<main id="viewHome">
+  <section class="hero">
+    <div class="embers" aria-hidden="true"></div>
+    <h1>Dungeons &amp; Byte</h1>
+    <div class="tag">Archivio degli Antichi Volumi</div>
+    <p class="lead">Manuali e avventure di ruolo, digitalizzati pagina per pagina e resi consultabili: cerca una regola, sfoglia un capitolo, perditi in un dungeon.</p>
+    <div class="hero-search">
+      <form class="search-box" id="heroForm" autocomplete="off">
+        <span class="ico">⌕</span>
+        <input id="hq" type="search" placeholder="Cerca un incantesimo, un mostro, una regola…" aria-label="Cerca">
+      </form>
+    </div>
+    <div class="cta">
+      <a class="btn primary" href="#biblioteca" id="ctaLib">⚔ Sfoglia la biblioteca</a>
+      <button class="btn" id="ctaRandom">⚄ Pagina a caso</button>
+      <button class="btn" id="ctaDice">⚀ Tira un d20</button>
+    </div>
+  </section>
+
+  <div class="stats" id="stats" aria-live="polite"></div>
+  <div class="banner hidden" id="lockBanner"><span>🔒 Accedi per usufruire di tutti gli strumenti creati.</span><button class="btn" id="bannerLogin">Accedi</button></div>
+
+  <section class="block" id="biblioteca">
+    <h2>La Biblioteca</h2>
+    <p class="sub" id="libSub"></p>
+    <div class="filters" id="filters"></div>
+    <div class="shelf" id="shelf"><div class="loading" style="grid-column:1/-1">Consultando l'archivio…</div></div>
+  </section>
+
+  <section class="block" id="come">
+    <h2>Come nasce l'archivio</h2>
+    <p class="sub">Dal PDF alla pagina che stai leggendo, passo dopo passo.</p>
+    <div class="pipeline">
+      <div class="step"><span class="g">📜</span><h4>Il volume</h4><p>Si parte dal PDF: nativo oppure scansione di un modulo d'antan.</p></div>
+      <div class="step"><span class="g">👁</span><h4>L'occhio</h4><p>Un modello di visione legge ogni pagina, riconosce testo, titoli e illustrazioni.</p></div>
+      <div class="step"><span class="g">🧹</span><h4>La pulizia</h4><p>Un modello linguistico locale ripara gli errori di lettura e la correzione manuale sistema i casi ostinati.</p></div>
+      <div class="step"><span class="g">✂️</span><h4>I capitoli</h4><p>Il testo viene spezzato per capitoli e sezioni, con le immagini al posto giusto.</p></div>
+      <div class="step"><span class="g">📚</span><h4>L'archivio</h4><p>Qui: ricercabile, sfogliabile, sempre a portata di mano al tavolo da gioco.</p></div>
+    </div>
+    <div class="note-box">Tutta la pipeline gira sul server di casa, orchestrata da n8n. Il codice è pubblico: <a href="https://github.com/Valdan-D/dungeons-and-byte" target="_blank" rel="noopener">github.com/Valdan-D/dungeons-and-byte ↗</a></div>
+  </section>
+
+  <footer>Dungeons &amp; Byte — Un archivio forgiato con ingegno e magia digitale</footer>
+</main>
+
+<!-- ═══ LETTORE ═══ -->
+<div id="viewReader" class="hidden">
+  <aside class="sidebar" id="sidebar">
+    <div class="side-head">
+      <h2 id="sideTitle"></h2>
+      <input id="chapterFilter" type="search" placeholder="Filtra i capitoli…" aria-label="Filtra capitoli">
+      <div class="side-count" id="sideCount"></div>
+    </div>
+    <ul id="chapterList"></ul>
+  </aside>
+  <div class="read-main">
+    <div class="read-bar">
+      <button class="mini" id="sideToggle">☰ Indice</button>
+      <div class="crumb" id="crumb"></div>
+      <button class="mini" id="fMinus" title="Testo più piccolo" aria-label="Riduci testo">A−</button>
+      <button class="mini" id="fPlus" title="Testo più grande" aria-label="Ingrandisci testo">A+</button>
+      <button class="mini" id="themeBtn" title="Cambia tema di lettura">☾ Notte</button>
+    </div>
+    <div class="read-scroll" id="readScroll">
+      <article class="paper"><div class="md" id="md"></div></article>
+      <div class="pager"><button id="prevBtn">← Precedente</button><button id="nextBtn">Successivo →</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ RISULTATI ═══ -->
+<main id="viewSearch" class="hidden"><div class="wrap" id="searchWrap"></div></main>
+
+<!-- ═══ DADI ═══ -->
+<aside class="dice-panel" id="dicePanel" aria-label="Tiradadi">
+  <h4>Tira i dadi <button id="diceClose" aria-label="Chiudi">✕</button></h4>
+  <div class="dgrid" id="dgrid"></div>
+  <div class="drow">
+    <label>Quanti <input type="number" id="dCount" value="1" min="1" max="20"></label>
+    <label>Bonus <input type="number" id="dMod" value="0" min="-50" max="50"></label>
+    <label id="advWrap" title="Solo d20"><input type="checkbox" id="dAdv"> Vant.</label>
+    <label id="disWrap" title="Solo d20"><input type="checkbox" id="dDis"> Svant.</label>
+  </div>
+  <div class="die" id="die"><svg viewBox="0 0 100 100" aria-hidden="true"><path d="M50 4 92 28v44L50 96 8 72V28z" fill="#1a1208" stroke="#c9a84c" stroke-width="3"/><path d="M50 4 50 40M8 28 50 40 92 28M50 40 28 78 72 78z M8 72 28 78M92 72 72 78M50 96 28 78M50 96 72 78" fill="none" stroke="#c9a84c" stroke-width="1.2" opacity=".5"/></svg><b id="dieNum">20</b></div>
+  <div class="dres" id="dRes">Scegli un dado e tira.</div>
+  <div class="dhist" id="dHist"></div>
+</aside>
+
+<!-- ═══ LOGIN ═══ -->
+<div class="overlay" id="loginOv" role="dialog" aria-modal="true" aria-labelledby="loginH">
+  <form class="login" id="loginForm">
+    <h2 id="loginH">Dungeons &amp; Byte</h2>
+    <p>Questo archivio è riservato. Pronuncia la parola d'ordine.</p>
+    <input type="text" id="usr" placeholder="Gruppo" autocomplete="username" autocapitalize="none" spellcheck="false" style="margin-bottom:10px" required>
+    <input type="password" id="pw" placeholder="Password" autocomplete="current-password" required>
+    <button class="btn primary" type="submit">Entra</button>
+    <div class="err" id="loginErr" role="alert"></div>
+    <button type="button" class="link hidden" id="loginClose">Continua con i volumi pubblici</button>
+  </form>
+</div>
+<div class="overlay" id="lightbox"><img alt=""></div>
+
+<script>
+'use strict';
+/* ═══════════ Utilità ═══════════ */
+const $  = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} },
+};
+const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+const fold = s => String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+const fmt = n => n >= 1e6 ? (n / 1e6).toFixed(1).replace('.', ',') + ' M' : n.toLocaleString('it-IT');
+const KIND = { manuale: 'Manuale', avventura: 'Avventura', regolamento: 'Regolamento' };
+const ERA  = { classico: 'Classico', '5e': '5ª edizione', '2024': 'Edizione 2024' };
+
+class AuthError extends Error {}
+async function api(params, opts) {
+  const res = await fetch('api.php?' + new URLSearchParams(params), opts);
+  if (res.status === 401) { state.auth.authenticated = false; throw new AuthError('auth'); }
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+  return data;
+}
+
+/* ═══════════ Stato ═══════════ */
+const state = {
+  auth: { enabled: false, authenticated: true }, books: [], totals: null,
+  filter: 'tutti', book: null, chapters: [], shown: [], idx: -1, highlight: [], scoped: true,
+};
+const bookById = id => state.books.find(b => b.id === id);
+
+/* ═══════════ Markdown → HTML sicuro ═══════════ */
+function inline(t) {
+  return t
+    .replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, '<img src="$2" alt="$1" loading="lazy">')
+    .replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g, '<a href="$2">$1</a>')
+    .replace(/\*\*\*(?!\s)(.+?)(?<!\s)\*\*\*/g, '<strong><em>$1</em></strong>')
+    .replace(/\*\*(?!\s)(.+?)(?<!\s)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(?![\s*])(.+?)(?<![\s*])\*/g, '<em>$1</em>')
+    .replace(/`([^`]+)`/g, '<code>$1</code>');
+}
+function mdToHtml(md) {
+  const lines = md.replace(/\r\n?/g, '\n').split('\n');
+  const out = []; let i = 0;
+  while (i < lines.length) {
+    const line = lines[i], tl = line.trim();
+    if (!tl) { i++; continue; }
+    // blocchi HTML grezzi (table / div): fino alla chiusura
+    const raw = tl.match(/^<(table|div)\b/i);
+    if (raw) {
+      const tag = raw[1].toLowerCase(); let depth = 0, buf = [];
+      while (i < lines.length) {
+        const l = lines[i++]; buf.push(l);
+        depth += (l.match(new RegExp('<' + tag + '\\b', 'gi')) || []).length - (l.match(new RegExp('</' + tag + '>', 'gi')) || []).length;
+        if (depth <= 0) break;
+      }
+      out.push(buf.join('\n')); continue;
+    }
+    let m;
+    if ((m = tl.match(/^(#{1,6})\s+(.*)$/))) { out.push(`<h${m[1].length}>${inline(m[2])}</h${m[1].length}>`); i++; continue; }
+    if (/^([-*_])(\s*\1){2,}$/.test(tl)) { out.push('<hr>'); i++; continue; }
+    if (/^>\s?/.test(tl)) {
+      const buf = []; while (i < lines.length && /^\s*>/.test(lines[i])) buf.push(lines[i++].replace(/^\s*>\s?/, ''));
+      out.push('<blockquote>' + inline(buf.join(' ')) + '</blockquote>'); continue;
+    }
+    if (/^([*+-]|\d+[.)])\s+/.test(tl)) {
+      const ordered = /^\d/.test(tl); const items = [];
+      while (i < lines.length && /^\s*([*+-]|\d+[.)])\s+/.test(lines[i])) items.push(lines[i++].trim().replace(/^([*+-]|\d+[.)])\s+/, ''));
+      const tag = ordered ? 'ol' : 'ul';
+      out.push(`<${tag}>` + items.map(x => '<li>' + inline(x) + '</li>').join('') + `</${tag}>`); continue;
+    }
+    // paragrafo: righe consecutive fino a riga vuota o a un nuovo blocco
+    const buf = [];
+    while (i < lines.length && lines[i].trim() && !/^(#{1,6}\s|<(table|div)\b|>|([*+-]|\d+[.)])\s)/i.test(lines[i].trim())) buf.push(lines[i++].trim());
+    if (!buf.length) { buf.push(lines[i++].trim()); }
+    out.push('<p>' + inline(buf.join(' ')) + '</p>');
+  }
+  return out.join('\n');
+}
+const ALLOWED = new Set(['P','H1','H2','H3','H4','H5','H6','UL','OL','LI','STRONG','EM','B','I','BR','HR','BLOCKQUOTE','CODE','A','IMG','TABLE','THEAD','TBODY','TR','TD','TH','DIV','SPAN']);
+function sanitize(html) {
+  const doc = new DOMParser().parseFromString('<body>' + html, 'text/html');
+  const walk = node => {
+    for (const el of [...node.children]) {
+      if (!ALLOWED.has(el.tagName)) {
+        if (/^(SCRIPT|STYLE|IFRAME|OBJECT|EMBED|LINK|META|FORM|INPUT|SVG|MATH)$/.test(el.tagName)) { el.remove(); continue; }
+        walk(el); el.replaceWith(...el.childNodes); continue;
+      }
+      const keep = {};
+      if (el.tagName === 'IMG') {
+        const src = el.getAttribute('src') || '';
+        if (!src.startsWith('api.php?')) { el.remove(); continue; }
+        keep.src = src; keep.alt = el.getAttribute('alt') || ''; keep.loading = 'lazy';
+        const w = (el.getAttribute('width') || '').match(/^(\d{1,3})%$/); if (w) keep.style = `max-width:${Math.min(100, +w[1])}%`;
+      } else if (el.tagName === 'A') {
+        const h = el.getAttribute('href') || '';
+        if (/^https?:/i.test(h)) { keep.href = h; keep.target = '_blank'; keep.rel = 'noopener noreferrer'; }
+      } else if (el.tagName === 'TD' || el.tagName === 'TH') {
+        for (const a of ['colspan', 'rowspan']) { const v = el.getAttribute(a); if (/^\d{1,2}$/.test(v || '')) keep[a] = v; }
+      } else if (el.tagName === 'DIV' && /text-align:\s*center/i.test(el.getAttribute('style') || '')) keep.class = 'c';
+      for (const a of [...el.attributes].map(x => x.name)) el.removeAttribute(a);
+      for (const [k, v] of Object.entries(keep)) el.setAttribute(k, v);
+      walk(el);
+    }
+  };
+  walk(doc.body);
+  $$('table', doc.body).forEach(t => { const w = doc.createElement('div'); w.className = 'tw'; t.replaceWith(w); w.appendChild(t); });
+  return doc.body.innerHTML;
+}
+function highlight(root, terms) {
+  if (!terms.length) return;
+  const re = new RegExp('(' + terms.map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')', 'gi');
+  const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT); const nodes = [];
+  while (w.nextNode()) if (re.test(w.currentNode.nodeValue)) nodes.push(w.currentNode);
+  nodes.forEach(n => {
+    const span = document.createElement('span');
+    span.innerHTML = esc(n.nodeValue).replace(re, '<mark>$1</mark>');
+    n.replaceWith(...span.childNodes);
+  });
+}
+
+/* ═══════════ Viste & router ═══════════ */
+function show(view) {
+  $('#viewHome').classList.toggle('hidden', view !== 'home');
+  $('#viewReader').classList.toggle('hidden', view !== 'reader');
+  $('#viewSearch').classList.toggle('hidden', view !== 'search');
+  $('#scope').classList.toggle('hidden', view !== 'reader');
+  $('#kbd').classList.toggle('hidden', view === 'reader');
+  document.body.style.overflow = view === 'reader' ? 'hidden' : '';
+}
+async function route() {
+  const parts = location.hash.replace(/^#\/?/, '').split('/').map(p => { try { return decodeURIComponent(p); } catch (e) { return p; } });
+  const h = parts.join('/');
+  closeSide();
+  if (h === 'biblioteca' || h === 'come') { show('home'); document.getElementById(h)?.scrollIntoView(); return; }
+  if (parts[0] === 'q' && parts[1]) { show('search'); return runSearch(parts[1], parts[2]); }
+  if (parts[0] === 'b' && parts[1]) {
+    await ready;
+    const b = bookById(parts[1]);
+    if (!b) { location.hash = '#/'; return; }
+    show('reader');
+    return openBook(b, parts[2]);
+  }
+  show('home'); state.book = null; document.title = 'Dungeons & Byte — Archivio Antico';
+  window.scrollTo(0, 0);
+}
+window.addEventListener('hashchange', route);
+const go = (id, file) => { location.hash = '#/b/' + id + (file ? '/' + encodeURIComponent(file) : ''); };
+
+/* ═══════════ Home ═══════════ */
+function countUp(el, to) {
+  const t0 = performance.now(), dur = 900;
+  const step = t => { const k = Math.min(1, (t - t0) / dur); el.textContent = fmt(Math.round(to * (1 - Math.pow(1 - k, 3)))); if (k < 1) requestAnimationFrame(step); };
+  requestAnimationFrame(step);
+}
+function renderStats() {
+  const t = state.totals; if (!t) return;
+  $('#stats').innerHTML = [['books', 'volumi'], ['chapters', 'capitoli'], ['words', 'parole'], ['images', 'illustrazioni']]
+    .map(([k, l]) => `<div class="stat"><b data-n="${t[k]}">0</b><span>${l}</span></div>`).join('');
+  $$('#stats b').forEach(b => countUp(b, +b.dataset.n));
+}
+function renderFilters() {
+  const eras = [['tutti', 'Tutti'], ['manuale', 'Manuali'], ['avventura', 'Avventure'], ['classico', 'Classici'], ['5e', '5ª edizione'], ['2024', 'Edizione 2024']];
+  const have = k => k === 'tutti' || state.books.some(b => b.kind === k || b.era === k);
+  $('#filters').innerHTML = eras.filter(([k]) => have(k)).map(([k, l]) => `<button class="chip${state.filter === k ? ' on' : ''}" data-f="${k}">${l}</button>`).join('');
+}
+function renderShelf() {
+  const f = state.filter;
+  const list = state.books.filter(b => f === 'tutti' || b.kind === f || b.era === f);
+  $('#libSub').textContent = state.books.length ? `${list.length} di ${state.books.length} volumi` : '';
+  if (!state.books.length) {
+    $('#shelf').innerHTML = `<div class="empty" style="grid-column:1/-1">${state.auth.enabled && !state.auth.authenticated ? 'La biblioteca è riservata. <br><br><button class="btn primary" id="shelfLogin">Accedi</button>' : 'Nessun volume disponibile.'}</div>`;
+    return;
+  }
+  $('#shelf').innerHTML = list.map(b => {
+    const last = store.get('dnb.last.' + b.id);
+    const cover = b.has_cover ? `<img src="api.php?action=cover&project=${encodeURIComponent(b.name)}" alt="" loading="lazy" onerror="this.remove()">` : '';
+    const when = [b.year, b.edition ? 'ed. ' + b.edition : ''].filter(Boolean).join(' · ');
+    return `<a class="book" href="#/b/${b.id}">
+      <div class="cover"><span class="sigil">${esc(b.title.replace(/^(il|la|lo|l'|le|gli|i)\s+/i, '').charAt(0).toUpperCase())}</span>${cover}
+        <div class="badges"><span class="badge k-${b.kind}">${KIND[b.kind]}</span>${when ? `<span class="badge era">${esc(when)}</span>` : ''}${b.epub_kb ? `<span class="badge epub" title="EPUB disponibile">EPUB</span>` : ''}</div></div>
+      <div class="book-body"><h3>${esc(b.title)}</h3>
+        <div class="meta"><span>${fmt(b.chapter_count)} capitoli</span><span>${fmt(b.images)} immagini</span><span>~${fmt(b.words)} parole</span></div>
+        ${last ? `<div class="resume">↻ Continua a leggere</div>` : ''}</div></a>`;
+  }).join('');
+}
+function embers() {
+  const box = $('.embers'); if (!box || box.children.length) return;
+  for (let i = 0; i < 16; i++) {
+    const s = document.createElement('span');
+    s.style.cssText = `left:${Math.random() * 100}%;animation-duration:${6 + Math.random() * 7}s;animation-delay:${-Math.random() * 12}s;width:${2 + Math.random() * 3}px;height:${2 + Math.random() * 3}px`;
+    box.appendChild(s);
+  }
+}
+
+/* ═══════════ Lettore ═══════════ */
+async function openBook(b, file) {
+  if (state.book?.id !== b.id) {
+    state.book = b; state.chapters = []; state.idx = -1;
+    $('#sideTitle').textContent = b.title; $('#chapterFilter').value = '';
+    $('#md').innerHTML = '<div class="loading">Consultando l\'archivio…</div>';
+    try { state.chapters = (await api({ action: 'chapters', project: b.name })).chapters; }
+    catch (e) { if (e instanceof AuthError) return needLogin(); $('#md').innerHTML = '<div class="welcome"><p>Errore nel caricamento del volume.</p></div>'; return; }
+    renderChapterList('');
+  }
+  document.title = b.title + ' — Dungeons & Byte';
+  const i = file ? state.chapters.findIndex(c => c.file === file) : -1;
+  if (i >= 0) return loadChapter(i);
+  showWelcome(b);
+}
+function showWelcome(b) {
+  state.idx = -1; markActive();
+  const last = store.get('dnb.last.' + b.id);
+  const lastCh = state.chapters.find(c => c.file === last);
+  $('#crumb').innerHTML = `<a href="#/">Biblioteca</a> › ${esc(b.title)}`;
+  $('#md').innerHTML = `<div class="welcome">${b.has_cover ? `<img src="api.php?action=cover&project=${encodeURIComponent(b.name)}" alt="Copertina">` : ''}
+    <h2>${esc(b.title)}</h2><p>${esc([KIND[b.kind], b.year, b.edition ? 'ed. ' + b.edition : ''].filter(Boolean).join(' · '))}</p>
+    <p>${fmt(b.chapter_count)} capitoli · ${fmt(b.images)} illustrazioni · ~${fmt(b.words)} parole</p><br>
+    <button class="btn primary" id="startBtn">${lastCh ? '↻ Riprendi da «' + esc(lastCh.title.slice(0, 40)) + '»' : '⚔ Inizia a leggere'}</button>
+    ${b.epub_kb ? `<p style="margin-top:18px"><a class="btn" href="api.php?action=epub&project=${encodeURIComponent(b.name)}">⬇ Scarica l'EPUB (${b.epub_kb >= 1024 ? (b.epub_kb / 1024).toFixed(1) + ' MB' : b.epub_kb + ' KB'})</a></p>` : ''}</div>`;
+  $('#startBtn').onclick = () => go(b.id, (lastCh || state.chapters[0]).file);
+  $('#prevBtn').disabled = $('#nextBtn').disabled = true;
+  $('#readScroll').scrollTop = 0;
+}
+function renderChapterList(q) {
+  const f = fold(q);
+  state.shown = state.chapters.map((c, i) => ({ ...c, i })).filter(c => !f || fold(c.title).includes(f));
+  $('#sideCount').textContent = q ? `${state.shown.length} di ${state.chapters.length} capitoli` : `${state.chapters.length} capitoli`;
+  $('#chapterList').innerHTML = state.shown.map(c =>
+    `<li data-i="${c.i}" class="${c.size < 250 ? 'tiny' : ''}"><span class="n">${String(c.i + 1).padStart(2, '0')}</span><span class="t">${esc(c.title)}</span></li>`).join('');
+  markActive();
+}
+function markActive() {
+  $$('#chapterList li.on').forEach(li => li.classList.remove('on'));
+  const li = $(`#chapterList li[data-i="${state.idx}"]`);
+  if (li) { li.classList.add('on'); li.scrollIntoView({ block: 'nearest' }); }
+}
+async function loadChapter(i) {
+  const c = state.chapters[i]; if (!c) return;
+  state.idx = i; markActive();
+  store.set('dnb.last.' + state.book.id, c.file);
+  $('#crumb').innerHTML = `<a href="#/">Biblioteca</a> › <a href="#/b/${state.book.id}">${esc(state.book.title)}</a> › ${esc(c.title)}`;
+  $('#prevBtn').disabled = i === 0; $('#nextBtn').disabled = i === state.chapters.length - 1;
+  const md = $('#md'); md.innerHTML = '<div class="loading">Consultando l\'archivio…</div>';
+  try {
+    const d = await api({ action: 'chapter', project: state.book.name, file: c.file });
+    if (state.idx !== i) return;                          // l'utente e' gia' passato oltre
+    md.innerHTML = sanitize(mdToHtml(d.content || ''));
+    highlight(md, state.highlight);
+    document.title = c.title + ' — ' + state.book.title;
+    const first = $('mark', md); first ? first.scrollIntoView({ block: 'center' }) : ($('#readScroll').scrollTop = 0);
+  } catch (e) {
+    if (e instanceof AuthError) return needLogin();
+    md.innerHTML = '<div class="welcome"><p>Errore nel caricamento del capitolo.</p></div>';
+  }
+}
+const step = d => { const n = state.idx + d; if (state.chapters[n]) { state.highlight = []; go(state.book.id, state.chapters[n].file); } };
+function closeSide() { $('#sidebar').classList.remove('open'); }
+
+/* ═══════════ Ricerca ═══════════ */
+async function runSearch(q, bookScope) {
+  q = q.trim(); const wrap = $('#searchWrap');
+  document.title = 'Cerca: ' + q + ' — Dungeons & Byte';
+  await ready;
+  wrap.innerHTML = '<div class="loading">Scartabellando i volumi…</div>';
+  try {
+    const params = { action: 'search', q }; if (bookScope && bookById(bookScope)) params.project = bookById(bookScope).name;
+    const d = await api(params);
+    state.highlight = d.terms;
+    if (!d.results.length) { wrap.innerHTML = `<h2>Nessun risultato</h2><div class="empty">Nessuna pagina menziona «${esc(q)}».<br>Prova con meno parole o senza accenti.</div>`; return; }
+    const re = new RegExp('(' + d.terms.map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')', 'gi');
+    wrap.innerHTML = `<h2>${d.total} ${d.total === 1 ? 'risultato' : 'risultati'} per «${esc(q)}»</h2>
+      <p class="sub" style="font-style:italic;opacity:.65">${d.total > d.results.length ? 'Mostrati i ' + d.results.length + ' più pertinenti. ' : ''}${bookScope ? 'Solo in: ' + esc(bookById(bookScope)?.title || '') : 'In tutta la biblioteca'}</p>` +
+      d.results.map(r => `<a class="hit" href="#/b/${r.id}/${encodeURIComponent(r.file)}" data-hl="1">
+        <div class="src">${esc(r.book)}</div><h3>${esc(r.title)}</h3><p>…${esc(r.snippet).replace(re, '<mark>$1</mark>')}…</p></a>`).join('');
+  } catch (e) {
+    if (e instanceof AuthError) return needLogin();
+    wrap.innerHTML = `<div class="empty">${esc(e.message)}</div>`;
+  }
+}
+function submitSearch(q) {
+  q = q.trim(); if (q.length < 2) return;
+  const inReader = !$('#viewReader').classList.contains('hidden') && state.book;
+  const scope = inReader && state.scoped ? '/' + state.book.id : '';
+  location.hash = '#/q/' + encodeURIComponent(q) + scope;
+}
+
+/* ═══════════ Dadi ═══════════ */
+const dice = { sides: 20, hist: [] };
+function rnd(n) { const a = new Uint32Array(1); const lim = Math.floor(0x100000000 / n) * n; do { crypto.getRandomValues(a); } while (a[0] >= lim); return a[0] % n + 1; }
+function buildDice() {
+  $('#dgrid').innerHTML = [4, 6, 8, 10, 12, 20, 100].map(n => `<button data-s="${n}" class="${n === dice.sides ? 'on' : ''}">d${n}</button>`).join('') + '<button data-roll="1" style="grid-column:span 1;background:var(--blood);color:#fff">Tira!</button>';
+}
+function roll() {
+  const n = Math.max(1, Math.min(20, +$('#dCount').value || 1)), mod = +$('#dMod').value || 0, s = dice.sides;
+  let rolls, kept, label = `${n}d${s}${mod ? (mod > 0 ? '+' : '') + mod : ''}`;
+  const adv = $('#dAdv').checked, dis = $('#dDis').checked;
+  if (s === 20 && n === 1 && adv !== dis) {
+    const a = rnd(20), b = rnd(20); kept = adv ? Math.max(a, b) : Math.min(a, b); rolls = [a, b]; label += adv ? ' vant.' : ' svant.';
+  } else { rolls = Array.from({ length: n }, () => rnd(s)); kept = rolls.reduce((x, y) => x + y, 0); }
+  const total = kept + mod, d = $('#die');
+  d.classList.remove('rolling', 'crit', 'fumble'); void d.offsetWidth; d.classList.add('rolling');
+  const nat = s === 20 && n === 1 ? kept : null;
+  if (nat === 20) d.classList.add('crit'); if (nat === 1) d.classList.add('fumble');
+  $('#dieNum').textContent = total;
+  $('#dRes').innerHTML = `<b>${total}</b> &nbsp;<small style="opacity:.7">[${rolls.join(', ')}]${mod ? ' ' + (mod > 0 ? '+' : '−') + Math.abs(mod) : ''}</small>${nat === 20 ? ' — ✨ Critico!' : nat === 1 ? ' — 💀 Fallimento critico' : ''}`;
+  dice.hist.unshift(`${label} → <b>${total}</b>`); dice.hist = dice.hist.slice(0, 12);
+  $('#dHist').innerHTML = dice.hist.map(h => `<div>${h}</div>`).join('');
+}
+function toggleDice(force) {
+  const p = $('#dicePanel'); const open = force ?? !p.classList.contains('open');
+  p.classList.toggle('open', open); $('#btnDice').setAttribute('aria-pressed', open);
+  if (open && !$('#dgrid').children.length) buildDice();
+}
+
+/* ═══════════ Login ═══════════ */
+function needLogin(closable) {
+  $('#loginClose').classList.toggle('hidden', !closable);
+  $('#loginOv').classList.add('open'); $('#loginErr').textContent = '';
+  try { if (!$('#usr').value) $('#usr').value = localStorage.getItem('dnb_usr') || ''; } catch (e) {}
+  setTimeout(() => ($('#usr').value ? $('#pw') : $('#usr')).focus(), 50);
+}
+async function doLogin(ev) {
+  ev.preventDefault();
+  try {
+    const r = await fetch('api.php?action=login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ user: $('#usr').value, password: $('#pw').value }) });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) { $('#loginErr').textContent = d.error || 'Errore'; $('#pw').select(); return; }
+    try { localStorage.setItem('dnb_usr', $('#usr').value.trim().toLowerCase()); } catch (e) {}
+    $('#pw').value = ''; $('#loginOv').classList.remove('open');
+    await init(true);
+  } catch (e) { $('#loginErr').textContent = 'Errore di rete'; }
+}
+async function logout() { await fetch('api.php?action=logout'); await init(true); location.hash = '#/'; }
+
+/* ═══════════ Init ═══════════ */
+let ready;
+async function init(reload) {
+  const run = async () => {
+    try { state.auth = await api({ action: 'auth' }); } catch (e) {}
+    $('#btnLogout').classList.toggle('hidden', !(state.auth.enabled && state.auth.authenticated));
+    $('#btnLogout').title = state.auth.user ? 'Esci (' + state.auth.user + ')' : 'Esci';
+    $('#btnCarte').classList.toggle('hidden', state.auth.enabled && !state.auth.authenticated);
+    $('#lockBanner').classList.toggle('hidden', !(state.auth.enabled && !state.auth.authenticated && state.books.length));
+    try {
+      const d = await api({ action: 'projects' });
+      state.books = d.projects.filter(p => p.type === 'markdown'); state.totals = d.totals;
+    } catch (e) { state.books = []; }
+    $('#lockBanner').classList.toggle('hidden', !(state.auth.enabled && !state.auth.authenticated && state.books.length));
+    renderStats(); renderFilters(); renderShelf();
+    if (state.auth.enabled && !state.auth.authenticated && !state.books.length) needLogin();
+  };
+  ready = run(); await ready;
+  if (reload) { state.book = null; route(); }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  embers();
+  const savedTheme = store.get('dnb.reader'); if (savedTheme === 'notte') document.documentElement.dataset.reader = 'notte';
+  const savedSize = parseFloat(store.get('dnb.size')); if (savedSize) document.documentElement.style.setProperty('--read-size', savedSize + 'rem');
+  syncTheme();
+
+  $('#searchForm').addEventListener('submit', e => { e.preventDefault(); submitSearch($('#q').value); });
+  $('#heroForm').addEventListener('submit', e => { e.preventDefault(); submitSearch($('#hq').value); });
+  $('#scope').addEventListener('click', () => { state.scoped = !state.scoped; $('#scope').textContent = state.scoped ? 'solo questo libro ✓' : 'tutti i libri'; });
+  $('#btnRandom').onclick = $('#ctaRandom').onclick = randomPage;
+  $('#btnDice').onclick = () => toggleDice(); $('#diceClose').onclick = () => toggleDice(false);
+  $('#ctaDice').onclick = () => { toggleDice(true); roll(); };
+  $('#dgrid').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.roll) return roll();
+    dice.sides = +b.dataset.s; buildDice();
+    const is20 = dice.sides === 20; $('#advWrap').style.opacity = $('#disWrap').style.opacity = is20 ? 1 : .35; roll();
+  });
+  $('#dAdv').onchange = () => { if ($('#dAdv').checked) $('#dDis').checked = false; };
+  $('#dDis').onchange = () => { if ($('#dDis').checked) $('#dAdv').checked = false; };
+  $('#filters').addEventListener('click', e => { const c = e.target.closest('.chip'); if (!c) return; state.filter = c.dataset.f; renderFilters(); renderShelf(); });
+  $('#shelf').addEventListener('click', e => { if (e.target.id === 'shelfLogin') needLogin(); });
+  $('#bannerLogin').onclick = () => needLogin(true);
+  $('#loginForm').addEventListener('submit', doLogin);
+  $('#loginClose').onclick = () => $('#loginOv').classList.remove('open');
+  $('#btnLogout').onclick = logout;
+  $('#btnCarte').onclick = () => { location.href = 'carte.html'; };
+  $('#ctaLib').addEventListener('click', e => { e.preventDefault(); history.replaceState(null, '', '#/'); document.getElementById('biblioteca').scrollIntoView(); });
+
+  $('#chapterFilter').addEventListener('input', e => renderChapterList(e.target.value));
+  $('#chapterList').addEventListener('click', e => { const li = e.target.closest('li'); if (!li) return; state.highlight = []; go(state.book.id, state.chapters[+li.dataset.i].file); });
+  $('#prevBtn').onclick = () => step(-1); $('#nextBtn').onclick = () => step(1);
+  $('#sideToggle').onclick = () => $('#sidebar').classList.toggle('open');
+  $('#fMinus').onclick = () => fontSize(-0.08); $('#fPlus').onclick = () => fontSize(0.08);
+  $('#themeBtn').onclick = () => {
+    const n = document.documentElement.dataset.reader === 'notte' ? 'pergamena' : 'notte';
+    document.documentElement.dataset.reader = n; store.set('dnb.reader', n); syncTheme();
+  };
+  $('#md').addEventListener('click', e => { if (e.target.tagName === 'IMG' && !e.target.closest('.welcome')) { $('#lightbox img').src = e.target.src; $('#lightbox').classList.add('open'); } });
+  $('#lightbox').onclick = () => $('#lightbox').classList.remove('open');
+
+  document.addEventListener('keydown', e => {
+    const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName);
+    if (e.key === 'Escape') { $('#lightbox').classList.remove('open'); $('#loginOv').classList.contains('open') && !$('#loginClose').classList.contains('hidden') && $('#loginOv').classList.remove('open'); toggleDice(false); closeSide(); document.activeElement?.blur?.(); return; }
+    if (typing || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.key === '/') { e.preventDefault(); $('#q').focus(); }
+    else if (e.key === 'd' || e.key === 'D') toggleDice();
+    else if (e.key === 'ArrowLeft' && state.book && !$('#viewReader').classList.contains('hidden')) step(-1);
+    else if (e.key === 'ArrowRight' && state.book && !$('#viewReader').classList.contains('hidden')) step(1);
+  });
+  if (matchMedia('(max-width:560px)').matches) { $('#q').placeholder = 'Cerca…'; $('#hq').placeholder = 'Cerca una regola, un mostro…'; }
+  init(false).then(route);
+});
+
+function syncTheme() { $('#themeBtn').textContent = document.documentElement.dataset.reader === 'notte' ? '☀ Pergamena' : '☾ Notte'; }
+function fontSize(d) {
+  const cur = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--read-size')) || 1.2;
+  const n = Math.max(.85, Math.min(1.9, cur + d)); document.documentElement.style.setProperty('--read-size', n.toFixed(2) + 'rem'); store.set('dnb.size', n.toFixed(2));
+}
+async function randomPage() {
+  try {
+    const params = { action: 'random' }; if (state.book && !$('#viewReader').classList.contains('hidden') && state.scoped) params.project = state.book.name;
+    const r = await api(params); state.highlight = []; go(r.id, r.file);
+  } catch (e) { if (e instanceof AuthError) needLogin(); }
+}
+</script>
+</body>
+</html>

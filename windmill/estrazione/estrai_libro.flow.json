@@ -1,183 +1,222 @@
 {
- "workspace_id": "dnb",
- "path": "f/estrazione/estrai_libro",
- "summary": "Estrazione - LoRA sui blocchi etichettati",
- "description": "Per un libro gia' etichettato: sceglie i LoRA (bestiario new/old dall'anno nel nome), costruisce le finestre dai blocchi etichettati e lancia i LoRA uno alla volta sulla GPU, poi raccoglie le entita' in <progetto>/estrazione/entita.json. Rifiuta se la GPU e' occupata o l'OCR e' attivo. Se si rilancia riprende da dove si era fermato (spunta 'ricostruisci' per rifare le finestre: i risultati vecchi vengono messi da parte).",
- "value": {
-  "modules": [
-   {
-    "id": "a",
-    "value": {
-     "path": "f/estrazione/scegli_lora",
-     "type": "script",
-     "input_transforms": {
-      "progetto": {
-       "expr": "(typeof flow_input.progetto === 'object' && flow_input.progetto !== null) ? flow_input.progetto.value : flow_input.progetto",
-       "type": "javascript"
+  "summary": "Estrazione - LoRA sui blocchi etichettati",
+  "description": "Per un libro gia' etichettato: sceglie i LoRA (bestiario new/old dall'anno nel nome), costruisce le finestre dai blocchi etichettati e lancia i LoRA uno alla volta sulla GPU, poi raccoglie le entita' in <progetto>/estrazione/entita.json. Rifiuta se la GPU e' occupata o l'OCR e' attivo. Se si rilancia riprende da dove si era fermato (spunta 'ricostruisci' per rifare le finestre: i risultati vecchi vengono messi da parte). Opzionale: carica le entita' nel database (passo d).",
+  "value": {
+    "modules": [
+      {
+        "id": "a",
+        "value": {
+          "path": "f/estrazione/scegli_lora",
+          "type": "script",
+          "input_transforms": {
+            "progetto": {
+              "expr": "(typeof flow_input.progetto === 'object' && flow_input.progetto !== null) ? flow_input.progetto.value : flow_input.progetto",
+              "type": "javascript"
+            },
+            "bestiario": {
+              "expr": "flow_input.bestiario",
+              "type": "javascript"
+            },
+            "tipologie": {
+              "expr": "flow_input.tipologie",
+              "type": "javascript"
+            }
+          }
+        },
+        "summary": "Sceglie i LoRA (bestiario new/old dall'anno)"
       },
-      "bestiario": {
-       "expr": "flow_input.bestiario",
-       "type": "javascript"
+      {
+        "id": "b",
+        "value": {
+          "type": "forloopflow",
+          "modules": [
+            {
+              "id": "b1",
+              "value": {
+                "path": "f/estrazione/prepara_finestre",
+                "type": "script",
+                "input_transforms": {
+                  "progetto": {
+                    "expr": "(typeof flow_input.progetto === 'object' && flow_input.progetto !== null) ? flow_input.progetto.value : flow_input.progetto",
+                    "type": "javascript"
+                  },
+                  "tipologia": {
+                    "expr": "flow_input.iter.value.tipologia",
+                    "type": "javascript"
+                  },
+                  "ricostruisci": {
+                    "expr": "flow_input.ricostruisci === true",
+                    "type": "javascript"
+                  }
+                }
+              },
+              "summary": "Costruisce le finestre"
+            },
+            {
+              "id": "b2",
+              "value": {
+                "path": "f/estrazione/esegui_lora",
+                "type": "script",
+                "input_transforms": {
+                  "progetto": {
+                    "expr": "(typeof flow_input.progetto === 'object' && flow_input.progetto !== null) ? flow_input.progetto.value : flow_input.progetto",
+                    "type": "javascript"
+                  },
+                  "tipologia": {
+                    "expr": "flow_input.iter.value.tipologia",
+                    "type": "javascript"
+                  },
+                  "n_finestre": {
+                    "expr": "results.b1.finestre",
+                    "type": "javascript"
+                  },
+                  "ore_massime": {
+                    "expr": "12",
+                    "type": "javascript"
+                  }
+                }
+              },
+              "summary": "Lancia il LoRA e aspetta",
+              "timeout": {
+                "type": "static",
+                "value": 46800
+              }
+            }
+          ],
+          "iterator": {
+            "expr": "results.a.lora",
+            "type": "javascript"
+          },
+          "parallel": false,
+          "skip_failures": false
+        },
+        "summary": "Un LoRA alla volta"
+      },
+      {
+        "id": "c",
+        "value": {
+          "path": "f/estrazione/riepilogo_estrazione",
+          "type": "script",
+          "input_transforms": {
+            "progetto": {
+              "expr": "(typeof flow_input.progetto === 'object' && flow_input.progetto !== null) ? flow_input.progetto.value : flow_input.progetto",
+              "type": "javascript"
+            }
+          }
+        },
+        "summary": "Raccoglie le entita' e riassume"
+      },
+      {
+        "id": "d",
+        "value": {
+          "path": "f/estrazione/carica_nel_db",
+          "type": "script",
+          "input_transforms": {
+            "progetto": {
+              "expr": "(typeof flow_input.progetto === 'object' && flow_input.progetto !== null) ? flow_input.progetto.value : flow_input.progetto",
+              "type": "javascript"
+            },
+            "carica_nel_db": {
+              "expr": "flow_input.carica_nel_db === true",
+              "type": "javascript"
+            },
+            "solo_controllo": {
+              "expr": "flow_input.solo_controllo === true",
+              "type": "javascript"
+            },
+            "escludi_tipologie": {
+              "expr": "flow_input.escludi_tipologie || []",
+              "type": "javascript"
+            }
+          }
+        },
+        "summary": "Controlla e carica nel database (se richiesto)"
+      }
+    ]
+  },
+  "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "order": [
+      "progetto",
+      "tipologie",
+      "bestiario",
+      "ricostruisci",
+      "carica_nel_db",
+      "solo_controllo",
+      "escludi_tipologie"
+    ],
+    "required": [
+      "progetto"
+    ],
+    "properties": {
+      "progetto": {
+        "type": "object",
+        "format": "dynselect-progetto",
+        "description": "Libro gia' etichettato (flusso Etichettatura): l'elenco mostra i libri con etichette/etichette.json"
       },
       "tipologie": {
-       "expr": "flow_input.tipologie",
-       "type": "javascript"
-      }
-     }
-    },
-    "summary": "Sceglie i LoRA (bestiario new/old dall'anno)"
-   },
-   {
-    "id": "b",
-    "value": {
-     "type": "forloopflow",
-     "modules": [
-      {
-       "id": "b1",
-       "value": {
-        "path": "f/estrazione/prepara_finestre",
-        "type": "script",
-        "input_transforms": {
-         "progetto": {
-          "expr": "(typeof flow_input.progetto === 'object' && flow_input.progetto !== null) ? flow_input.progetto.value : flow_input.progetto",
-          "type": "javascript"
-         },
-         "tipologia": {
-          "expr": "flow_input.iter.value.tipologia",
-          "type": "javascript"
-         },
-         "ricostruisci": {
-          "expr": "flow_input.ricostruisci === true",
-          "type": "javascript"
-         }
-        }
-       },
-       "summary": "Costruisce le finestre"
+        "type": "array",
+        "items": {
+          "type": "string",
+          "enum": [
+            "bestiario",
+            "incantesimo",
+            "classe",
+            "specie",
+            "background",
+            "oggetto",
+            "regola",
+            "luogo"
+          ]
+        },
+        "default": [
+          "bestiario",
+          "incantesimo",
+          "classe",
+          "specie",
+          "background",
+          "oggetto",
+          "regola",
+          "luogo"
+        ],
+        "description": "Tipologie da estrarre (si usano solo quelle con blocchi etichettati)"
       },
-      {
-       "id": "b2",
-       "value": {
-        "path": "f/estrazione/esegui_lora",
-        "type": "script",
-        "input_transforms": {
-         "progetto": {
-          "expr": "(typeof flow_input.progetto === 'object' && flow_input.progetto !== null) ? flow_input.progetto.value : flow_input.progetto",
-          "type": "javascript"
-         },
-         "tipologia": {
-          "expr": "flow_input.iter.value.tipologia",
-          "type": "javascript"
-         },
-         "n_finestre": {
-          "expr": "results.b1.finestre",
-          "type": "javascript"
-         },
-         "ore_massime": {
-          "expr": "12",
-          "type": "javascript"
-         }
-        }
-       },
-       "summary": "Lancia il LoRA e aspetta",
-       "timeout": {
-        "type": "static",
-        "value": 46800
-       }
+      "bestiario": {
+        "type": "string",
+        "enum": [
+          "auto",
+          "new",
+          "old"
+        ],
+        "default": "auto",
+        "description": "auto = dall'anno nel nome (dal 2014 in poi new; senza anno, edizione 5 o 5.5 = new)"
+      },
+      "ricostruisci": {
+        "type": "boolean",
+        "default": false,
+        "description": "Ricostruisce le finestre anche se esistono gia' (e mette da parte i risultati precedenti). Lascia falso per riprendere un'estrazione interrotta."
+      },
+      "carica_nel_db": {
+        "type": "boolean",
+        "default": false,
+        "description": "Alla fine controlla le entita' e le carica nel database D&B (LXC 124). Le voci 'verificate' a mano non si toccano."
+      },
+      "solo_controllo": {
+        "type": "boolean",
+        "default": false,
+        "description": "Con il caricamento: fa solo i controlli e mostra gli avvisi, senza scrivere nel database"
+      },
+      "escludi_tipologie": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "default": [],
+        "description": "Tipologie da NON caricare (es. luogo per l'SRD, che non ha luoghi)"
       }
-     ],
-     "iterator": {
-      "expr": "results.a.lora",
-      "type": "javascript"
-     },
-     "parallel": false,
-     "skip_failures": false
     },
-    "summary": "Un LoRA alla volta"
-   },
-   {
-    "id": "c",
-    "value": {
-     "path": "f/estrazione/riepilogo_estrazione",
-     "type": "script",
-     "input_transforms": {
-      "progetto": {
-       "expr": "(typeof flow_input.progetto === 'object' && flow_input.progetto !== null) ? flow_input.progetto.value : flow_input.progetto",
-       "type": "javascript"
-      }
-     }
-    },
-    "summary": "Raccoglie le entita' e riassume"
-   }
-  ]
- },
- "edited_by": "admin",
- "edited_at": "2026-10-16T19:23:25.825354Z",
- "archived": false,
- "schema": {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "type": "object",
-  "order": [
-   "progetto",
-   "tipologie",
-   "bestiario",
-   "ricostruisci"
-  ],
-  "required": [
-   "progetto"
-  ],
-  "properties": {
-   "progetto": {
-    "type": "object",
-    "format": "dynselect-progetto",
-    "description": "Libro gia' etichettato (flusso Etichettatura): l'elenco mostra i libri con etichette/etichette.json"
-   },
-   "tipologie": {
-    "type": "array",
-    "items": {
-     "type": "string",
-     "enum": [
-      "bestiario",
-      "incantesimo",
-      "classe",
-      "specie",
-      "background",
-      "oggetto",
-      "regola",
-      "luogo"
-     ]
-    },
-    "default": [
-     "bestiario",
-     "incantesimo",
-     "classe",
-     "specie",
-     "background",
-     "oggetto",
-     "regola",
-     "luogo"
-    ],
-    "description": "Tipologie da estrarre (si usano solo quelle con blocchi etichettati)"
-   },
-   "bestiario": {
-    "type": "string",
-    "enum": [
-     "auto",
-     "new",
-     "old"
-    ],
-    "default": "auto",
-    "description": "auto = dall'anno nel nome (dal 2014 in poi new; senza anno, edizione 5 o 5.5 = new)"
-   },
-   "ricostruisci": {
-    "type": "boolean",
-    "default": false,
-    "description": "Ricostruisce le finestre anche se esistono gia' (e mette da parte i risultati precedenti). Lascia falso per riprendere un'estrazione interrotta."
-   }
-  },
-  "x-windmill-dyn-select-code": "import os\n\ndef progetto():\n    \"\"\"Libri etichettati: cartelle di /shared/projects con etichette/etichette.json.\"\"\"\n    d = \"/shared/projects\"\n    return [{\"value\": n, \"label\": n} for n in sorted(os.listdir(d)) if os.path.exists(os.path.join(d, n, \"etichette\", \"etichette.json\"))]\n",
-  "x-windmill-dyn-select-lang": "python3"
- },
- "extra_perms": {},
- "version_id": 6,
- "is_draft": false
+    "x-windmill-dyn-select-code": "import os\n\ndef progetto():\n    \"\"\"Libri etichettati: cartelle di /shared/projects con etichette/etichette.json.\"\"\"\n    d = \"/shared/projects\"\n    return [{\"value\": n, \"label\": n} for n in sorted(os.listdir(d)) if os.path.exists(os.path.join(d, n, \"etichette\", \"etichette.json\"))]\n",
+    "x-windmill-dyn-select-lang": "python3"
+  }
 }

@@ -1,0 +1,1 @@
+10 4 * * * root /usr/local/bin/dnb-auth log purge >> /var/log/dnb-auth-log.log 2>&1

@@ -1,0 +1,217 @@
+#!/usr/bin/env php
+<?php
+/**
+ * dnb-auth — gestione degli accessi di Dungeons & Byte: un utente per GRUPPO, registro accessi.
+ *
+ *   dnb-auth status
+ *   dnb-auth user add NOME [pw]         crea un gruppo (chiede la password su terminale se omessa)
+ *   dnb-auth user reset NOME [pw]       cambia la password del gruppo (scollega i suoi dispositivi)
+ *   dnb-auth user remove NOME           toglie il gruppo (scollega subito i suoi dispositivi)
+ *   dnb-auth user disable|enable NOME   sospende / riattiva un gruppo
+ *   dnb-auth user list                  gruppi, stato e ultimo accesso
+ *   dnb-auth enable | disable           attiva / spegne la protezione (serve almeno un gruppo)
+ *   dnb-auth public list|add N|remove N|clear   volumi consultabili SENZA accesso quando la protezione e' attiva
+ *   dnb-auth log [giorni] [--falliti] [--gruppo X] [--ip IP]   registro accessi (default ultimi 7 giorni)
+ *   dnb-auth log purge                  cancella le righe piu' vecchie di log_days (default 30; e' gia' in cron)
+ *   dnb-auth log days N                 giorni di conservazione del registro
+ *   dnb-auth ips update-cf              scarica gli indirizzi dei server Cloudflare (per leggere l'IP reale)
+ *   dnb-auth ips proxy list|add X|remove X   proxy fidati (es. l'indirizzo di Nginx Proxy Manager)
+ *   dnb-auth logout-all                 scollega tutti i dispositivi (ruota il secret)
+ *   dnb-auth days N                     durata dell'accesso dopo il login (giorni)
+ *   dnb-auth set-password [pw]          (compatibilita') = user reset del gruppo "principale"
+ */
+$CFG  = getenv('DNB_CONFIG') ?: '/var/www/dnb_config.php';
+$DATA = getenv('DNB_DATA')   ?: '/var/www/dnb_data';
+const BASE = '/mnt/cond/';
+
+function load(): array {
+    global $CFG;
+    $c = is_file($CFG) ? (include $CFG) : [];
+    $c = (is_array($c) ? $c : []) + ['auth_enabled' => false, 'password_hash' => '', 'secret' => '', 'users' => [], 'public_projects' => [],
+                                     'session_days' => 30, 'log_days' => 30, 'trusted_proxies' => []];
+    if (!$c['users'] && $c['password_hash'] !== '') {      // migra la vecchia password unica
+        $c['users'] = ['principale' => ['hash' => $c['password_hash'], 'attivo' => true, 'creato' => date('Y-m-d')]];
+    }
+    $c['password_hash'] = '';
+    return $c;
+}
+function save(array $c): void {
+    global $CFG;
+    if ($c['secret'] === '') $c['secret'] = bin2hex(random_bytes(32));
+    $php = "<?php\n// Gestito da `dnb-auth`. Fuori dalla web root: non va servito da Apache.\nreturn " . var_export($c, true) . ";\n";
+    file_put_contents($CFG, $php, LOCK_EX);
+    chmod($CFG, 0640);
+    @chgrp($CFG, 'www-data');
+}
+function out(string $s): void { fwrite(STDOUT, $s . "\n"); }
+function die_(string $s): never { fwrite(STDERR, $s . "\n"); exit(1); }
+function chiedi_pw(?string $pw): string {
+    if ($pw === null) {
+        fwrite(STDOUT, 'Password: '); system('stty -echo 2>/dev/null'); $pw = trim((string)fgets(STDIN)); system('stty echo 2>/dev/null'); out('');
+        fwrite(STDOUT, 'Ripeti password: '); system('stty -echo 2>/dev/null'); $pw2 = trim((string)fgets(STDIN)); system('stty echo 2>/dev/null'); out('');
+        if ($pw !== $pw2) die_('Le password non coincidono.');
+    }
+    if (strlen($pw) < 8) die_('Troppo corta: almeno 8 caratteri.');
+    return $pw;
+}
+function nome_ok(string $n): string {
+    $n = strtolower(trim($n));
+    if (!preg_match('/^[a-z0-9][a-z0-9_.-]{0,31}$/', $n)) die_('Nome non valido: 1-32 caratteri tra lettere minuscole, cifre, punto, trattino, underscore.');
+    return $n;
+}
+function righe_log(int $giorni): array {
+    global $DATA; $f = "$DATA/accessi.jsonl"; $r = [];
+    if (!is_file($f)) return $r;
+    $da = time() - 86400 * $giorni;
+    foreach (file($f, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) as $l) {
+        $x = json_decode($l, true);
+        if (is_array($x) && isset($x['t']) && strtotime($x['t']) >= $da) $r[] = $x;
+    }
+    return $r;
+}
+function browser(string $ua): string {
+    $b = preg_match('/Edg\//', $ua) ? 'Edge' : (preg_match('/OPR\/|Opera/', $ua) ? 'Opera' : (preg_match('/Firefox\//', $ua) ? 'Firefox' : (preg_match('/Chrome\//', $ua) ? 'Chrome' : (preg_match('/Safari\//', $ua) ? 'Safari' : ($ua === '' ? '-' : 'altro')))));
+    $s = preg_match('/Windows/', $ua) ? 'Windows' : (preg_match('/Android/', $ua) ? 'Android' : (preg_match('/iPhone|iPad|iOS/', $ua) ? 'iOS' : (preg_match('/Mac OS X|Macintosh/', $ua) ? 'macOS' : (preg_match('/Linux/', $ua) ? 'Linux' : '-'))));
+    return "$b/$s";
+}
+
+$cmd = $argv[1] ?? 'status';
+$c = load();
+
+switch ($cmd) {
+    case 'status':
+        $attivi = array_filter($c['users'], fn($u) => !empty($u['attivo']));
+        out('Protezione:      ' . ($c['auth_enabled'] ? 'ATTIVA' : 'spenta (sito aperto a tutti)'));
+        out('Gruppi:          ' . count($c['users']) . ' (' . count($attivi) . ' attivi)' . ($c['users'] ? ': ' . implode(', ', array_keys($c['users'])) : ' — crea il primo con `dnb-auth user add NOME`'));
+        out('Durata accesso:  ' . $c['session_days'] . ' giorni');
+        out('Registro:        ' . count(righe_log(3650)) . ' righe, conservato ' . $c['log_days'] . ' giorni');
+        out('Proxy fidati:    ' . ($c['trusted_proxies'] ? implode(', ', $c['trusted_proxies']) : '(nessuno: nel registro compare l\'IP del proxy)'));
+        out('Volumi pubblici: ' . ($c['public_projects'] ? implode(' | ', $c['public_projects']) : '(nessuno: con protezione attiva serve l\'accesso per tutto)'));
+        break;
+
+    case 'user':
+        $sub = $argv[2] ?? 'list'; $nome = isset($argv[3]) ? nome_ok($argv[3]) : '';
+        if ($sub === 'list') {
+            $ultimo = [];
+            foreach (righe_log(3650) as $x) if (in_array($x['e'], ['login', 'visita'], true) && ($x['u'] ?? '') !== '') $ultimo[$x['u']] = $x['t'];
+            if (!$c['users']) out('(nessun gruppo)');
+            foreach ($c['users'] as $n => $u) out(sprintf('%-20s %-10s creato %-10s ultimo accesso %s', $n, !empty($u['attivo']) ? 'attivo' : 'SOSPESO', $u['creato'] ?: '-', isset($ultimo[$n]) ? date('d/m/Y H:i', strtotime($ultimo[$n])) : 'mai'));
+            break;
+        }
+        if ($nome === '') die_('Indica il nome del gruppo.');
+        if ($sub === 'add') {
+            if (isset($c['users'][$nome])) die_("Il gruppo $nome esiste gia': usa `user reset`.");
+            $c['users'][$nome] = ['hash' => password_hash(chiedi_pw($argv[4] ?? null), PASSWORD_BCRYPT, ['cost' => 11]), 'attivo' => true, 'creato' => date('Y-m-d')];
+            save($c); out("Gruppo $nome creato.");
+        } elseif ($sub === 'reset') {
+            if (!isset($c['users'][$nome])) die_("Gruppo non trovato: $nome");
+            $c['users'][$nome]['hash'] = password_hash(chiedi_pw($argv[4] ?? null), PASSWORD_BCRYPT, ['cost' => 11]);
+            save($c); out("Password di $nome cambiata: i suoi dispositivi sono stati scollegati.");
+        } elseif ($sub === 'remove') {
+            if (!isset($c['users'][$nome])) die_("Gruppo non trovato: $nome");
+            unset($c['users'][$nome]);
+            if ($c['auth_enabled'] && !array_filter($c['users'], fn($u) => !empty($u['attivo']))) die_('Non puoi togliere l\'ultimo gruppo attivo con la protezione accesa: prima `dnb-auth disable`.');
+            save($c); out("Gruppo $nome rimosso.");
+        } elseif ($sub === 'disable' || $sub === 'enable') {
+            if (!isset($c['users'][$nome])) die_("Gruppo non trovato: $nome");
+            $c['users'][$nome]['attivo'] = ($sub === 'enable');
+            if ($c['auth_enabled'] && !array_filter($c['users'], fn($u) => !empty($u['attivo']))) die_('Non puoi sospendere l\'ultimo gruppo attivo con la protezione accesa.');
+            save($c); out("Gruppo $nome " . ($sub === 'enable' ? 'riattivato.' : 'sospeso.'));
+        } else die_('Uso: dnb-auth user add|reset|remove|disable|enable NOME | list');
+        break;
+
+    case 'set-password':
+        $c['users']['principale'] ??= ['hash' => '', 'attivo' => true, 'creato' => date('Y-m-d')];
+        $c['users']['principale']['hash'] = password_hash(chiedi_pw($argv[2] ?? null), PASSWORD_BCRYPT, ['cost' => 11]);
+        save($c); out('Password del gruppo "principale" impostata.');
+        break;
+
+    case 'enable':
+        if (!array_filter($c['users'], fn($u) => !empty($u['attivo']))) die_('Prima crea un gruppo: dnb-auth user add NOME');
+        $c['auth_enabled'] = true; save($c);
+        out('Protezione ATTIVATA' . ($c['public_projects'] ? ' (tranne i volumi pubblici).' : '.'));
+        break;
+
+    case 'disable':
+        $c['auth_enabled'] = false; save($c);
+        out('Protezione SPENTA. Il sito e\' di nuovo aperto a tutti.');
+        break;
+
+    case 'public':
+        $sub = $argv[2] ?? 'list'; $name = $argv[3] ?? '';
+        if ($sub === 'add') {
+            if (!is_dir(BASE . $name)) die_("Volume non trovato in " . BASE . ": $name");
+            $c['public_projects'] = array_values(array_unique([...$c['public_projects'], $name])); save($c); out("Aggiunto ai volumi pubblici: $name");
+        } elseif ($sub === 'remove') {
+            $c['public_projects'] = array_values(array_diff($c['public_projects'], [$name])); save($c); out("Rimosso dai volumi pubblici: $name");
+        } elseif ($sub === 'clear') {
+            $c['public_projects'] = []; save($c); out('Nessun volume pubblico.');
+        } else { foreach ($c['public_projects'] as $p) out($p); if (!$c['public_projects']) out('(nessuno)'); }
+        break;
+
+    case 'log':
+        $sub = $argv[2] ?? '';
+        if ($sub === 'purge') {
+            $f = "$DATA/accessi.jsonl"; if (!is_file($f)) { out('Nessun registro.'); break; }
+            $fh = fopen($f, 'c+'); flock($fh, LOCK_EX);
+            $da = time() - 86400 * max(1, (int)$c['log_days']); $tieni = []; $tot = 0;
+            foreach (explode("\n", stream_get_contents($fh)) as $l) {
+                if (trim($l) === '') continue; $tot++;
+                $x = json_decode($l, true);
+                if (is_array($x) && isset($x['t']) && strtotime($x['t']) >= $da) $tieni[] = $l;
+            }
+            ftruncate($fh, 0); rewind($fh); fwrite($fh, $tieni ? implode("\n", $tieni) . "\n" : ''); fflush($fh); flock($fh, LOCK_UN); fclose($fh);
+            out('Registro ripulito: tolte ' . ($tot - count($tieni)) . ' righe piu\' vecchie di ' . $c['log_days'] . ' giorni, restano ' . count($tieni) . '.');
+            break;
+        }
+        if ($sub === 'days') {
+            $n = (int)($argv[3] ?? 0); if ($n < 1 || $n > 365) die_('Indica un numero di giorni tra 1 e 365.');
+            $c['log_days'] = $n; save($c); out("Il registro si conserva $n giorni."); break;
+        }
+        $giorni = ctype_digit($sub) ? (int)$sub : 7; $falliti = in_array('--falliti', $argv, true); $g = $ip = null;
+        foreach ($argv as $i => $a) { if ($a === '--gruppo') $g = $argv[$i + 1] ?? null; if ($a === '--ip') $ip = $argv[$i + 1] ?? null; }
+        $n = 0;
+        foreach (righe_log($giorni) as $x) {
+            if ($falliti && !in_array($x['e'], ['login_fallito', 'bloccato'], true)) continue;
+            if ($g !== null && ($x['u'] ?? '') !== $g) continue;
+            if ($ip !== null && ($x['ip'] ?? '') !== $ip) continue;
+            out(sprintf('%s  %-14s %-18s %-40s %s%s', date('d/m H:i:s', strtotime($x['t'])), $x['e'], $x['u'] ?: '-', $x['ip'], browser($x['ua'] ?? ''), isset($x['d']) ? '  (' . $x['d'] . ')' : '')); $n++;
+        }
+        out("-- $n eventi negli ultimi $giorni giorni");
+        break;
+
+    case 'ips':
+        $sub = $argv[2] ?? '';
+        if ($sub === 'update-cf') {
+            @mkdir($DATA, 0750, true); $tutti = [];
+            foreach (['https://www.cloudflare.com/ips-v4', 'https://www.cloudflare.com/ips-v6'] as $u) {
+                $r = shell_exec('curl -fsS -m 20 ' . escapeshellarg($u) . ' 2>/dev/null');
+                foreach (preg_split('/\s+/', trim((string)$r)) as $l) if (preg_match('#^[0-9a-fA-F:.]+/\d{1,3}$#', $l)) $tutti[] = $l;
+            }
+            if (count($tutti) < 10) die_('Download fallito o incompleto: non cambio nulla.');
+            file_put_contents("$DATA/cloudflare_ips.txt", implode("\n", $tutti) . "\n"); @chgrp("$DATA/cloudflare_ips.txt", 'www-data'); chmod("$DATA/cloudflare_ips.txt", 0640);
+            out('Indirizzi Cloudflare aggiornati: ' . count($tutti) . ' reti.');
+        } elseif ($sub === 'proxy') {
+            $az = $argv[3] ?? 'list'; $v = $argv[4] ?? '';
+            if ($az === 'add') { if (!preg_match('#^[0-9a-fA-F:.]+(/\d{1,3})?$#', $v)) die_('Indirizzo non valido.'); $c['trusted_proxies'] = array_values(array_unique([...$c['trusted_proxies'], $v])); save($c); out("Proxy fidato aggiunto: $v"); }
+            elseif ($az === 'remove') { $c['trusted_proxies'] = array_values(array_diff($c['trusted_proxies'], [$v])); save($c); out("Proxy fidato tolto: $v"); }
+            else { foreach ($c['trusted_proxies'] as $p) out($p); if (!$c['trusted_proxies']) out('(nessuno)'); }
+        } else die_('Uso: dnb-auth ips update-cf | ips proxy list|add X|remove X');
+        break;
+
+    case 'logout-all':
+        $c['secret'] = bin2hex(random_bytes(32)); save($c);
+        out('Tutti i dispositivi sono stati scollegati.');
+        break;
+
+    case 'days':
+        $n = (int)($argv[2] ?? 0);
+        if ($n < 1 || $n > 365) die_('Indica un numero di giorni tra 1 e 365.');
+        $c['session_days'] = $n; save($c);
+        out("Durata accesso: $n giorni.");
+        break;
+
+    default:
+        out("Comando sconosciuto: $cmd\nUso: dnb-auth status|user|enable|disable|public|log|ips|logout-all|days");
+        exit(1);
+}
