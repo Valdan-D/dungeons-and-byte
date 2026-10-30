@@ -1,0 +1,18 @@
+[Unit]
+Description=D&B revisione titoli e box (Flask)
+After=network.target
+
+[Service]
+WorkingDirectory=/opt/dnb_revisione
+Environment=DNB_BASE=/shared/projects
+Environment=DNB_HOST=<indirizzo-del-servizio>
+Environment=DNB_PORT=8095
+Environment=DNB_ALLOW=<indirizzo-del-proxy>
+Environment=DNB_WINDMILL=http://127.0.0.1:80
+ExecStart=/opt/dnb_revisione/venv/bin/python app.py
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

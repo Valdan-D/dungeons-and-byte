@@ -1,0 +1,145 @@
+{
+ "versione": 1,
+ "descrizione": "Catalogo dei GENERATORI di candidati box. Nessuna regola e piu per libro: ogni generatore propone, filtri comuni scartano (tabelle, titoli soli, schede di mostri, pagine tutte colorate, righe numerate), la revisione umana decide E un box / Non lo e. Le decisioni sono dati di addestramento.",
+ "voci": [
+  {
+   "id": "vett-cornice-nera-10",
+   "indizio": "disegno_vettoriale",
+   "parametri": {
+    "items": 10,
+    "fill": [
+     0.0,
+     0.0,
+     0.0
+    ],
+    "line": null,
+    "larghezza_min_pt": 240,
+    "altezza_min_pt": 30,
+    "larghezza_max_pt": 520
+   },
+   "significato": "box_testo_da_leggere",
+   "titolo_dentro": false,
+   "esempi": [],
+   "conferme": [],
+   "note": "Riquadro con cornice nera vettoriale (testo da leggere ad alta voce; il titolo sta fuori, sopra la cornice). Le barre del titolo di pagina, piu larghe della pagina, hanno la stessa cornice ma non sono box.",
+   "stato": "confermato"
+  },
+  {
+   "id": "vett-riquadro-beige-8",
+   "indizio": "disegno_vettoriale",
+   "parametri": {
+    "items": 1,
+    "fill": [
+     0.85,
+     0.76,
+     0.57
+    ],
+    "line": null,
+    "larghezza_pt": 236,
+    "altezza_min_pt": 60
+   },
+   "significato": "box_con_titolo_dentro",
+   "titolo_dentro": true,
+   "esempi": [],
+   "conferme": [],
+   "stato": "confermato",
+   "note": "Riquadro beige con ombra a larghezza di colonna. Lo stesso beige, con altra forma, e usato per le righe delle tabelle: si distingue per numero di elementi e larghezza."
+  },
+  {
+   "id": "sfondo-diverso-dalla-carta",
+   "indizio": "colore_sfondo_blocco",
+   "parametri": {
+    "misura": "colore mediano del 40% dei pixel piu chiari dentro il blocco OCR di testo (render zoom 1) vs mediana dei blocchi della pagina",
+    "distanza_min": 16,
+    "luminosita_min": 150,
+    "nessun vincolo di tinta": true,
+    "cluster": "blocchi contigui (gap<=30pt, stessa colonna)"
+   },
+   "significato": "box_con_titolo_dentro",
+   "titolo_dentro": true,
+   "esempi": [],
+   "conferme": [],
+   "stato": "confermato",
+   "note": "Generatore generico: blocchi di testo con sfondo di tinta diversa dalla carta (qualsiasi colore). I filtri comuni imparano dal contenuto il colore delle schede dei mostri (Classe Armatura/Punti Ferita) e scartano i candidati dello stesso colore."
+  },
+  {
+   "id": "immagine-colonna-con-testo",
+   "indizio": "immagine_pdf",
+   "parametri": {
+    "larghezza_min_pt": 180,
+    "altezza_min_pt": 40,
+    "larghezza_max": "80% pagina",
+    "condizione": "contiene almeno un blocco OCR di testo (>=80% dell area)"
+   },
+   "significato": "da_decidere (nota a margine con cornice ornamentale oppure scheda/immagine)",
+   "titolo_dentro": null,
+   "esempi": [],
+   "conferme": [],
+   "stato": "proposta",
+   "note": "Proposta: immagine a larghezza di colonna con testo. Troppo generica da sola; richiede la conferma umana."
+  },
+  {
+   "id": "raster-riquadro-rosa-lilla",
+   "indizio": "pixel_colore_componente",
+   "parametri": {
+    "misura": "render zoom 0.5; pixel tinti: G<=205, R>=170, R>=G+15, B>=G+8, B<=235, R>=B-30; componenti connesse (8 vicini)",
+    "larghezza_min_pt": 215,
+    "larghezza_max_pt": 245,
+    "altezza_min_pt": 40,
+    "riempimento_min": 0.5,
+    "area_min_pt2": 2500
+   },
+   "significato": "box_testo_da_leggere (rosa, senza titolo) oppure box_con_titolo_dentro (lilla)",
+   "titolo_dentro": "dipende (lilla si, rosa no)",
+   "esempi": [],
+   "conferme": [],
+   "stato": "confermato",
+   "note": "Riquadri disegnati come immagine (nessun rettangolo vettoriale): rosa = testo da leggere, lilla = con titolo. Il rilevamento usa pixel tinti e componenti connesse. Se il lilla sta sopra un illustrazione viene troncato: in quel caso si usa il titolo di box deciso e i blocchi di testo sotto."
+  },
+  {
+   "id": "immagine-cornice-ornamentale",
+   "indizio": "immagine_pdf_con_linea_marrone",
+   "parametri": {
+    "larghezza_pt": "200-270",
+    "altezza_min_pt": 50,
+    "chiara_min": 0.8,
+    "colore_linea": "R-B >= 30 (pixel piu scuri della fascia di 4pt sul bordo)",
+    "separazione": "vuoto > 24 pt tra blocchi di testo (un immagine puo contenere piu cornici)",
+    "margine_pt": 14,
+    "esclusioni": "duplicati di box gia trovati (overlap>=50%)"
+   },
+   "significato": "nota_a_margine",
+   "titolo_dentro": false,
+   "esempi": [],
+   "conferme": [],
+   "stato": "confermato",
+   "note": "Note a margine con cornice ornamentale (linea marrone, R-B>=30). Le schede dei mostri (linea grigia) e le righe azzurre di tabella sono scartate dal colore della linea."
+  },
+  {
+   "id": "raster-riquadro-verde",
+   "indizio": "pixel_colore_componente",
+   "parametri": {
+    "misura": "render zoom 0.5; pixel verdi: G>=205, G>=R+6, G>=B+14, R<=240; componenti connesse",
+    "larghezza_min_pt": 150,
+    "larghezza_max_pt": 400,
+    "altezza_min_pt": 40,
+    "riempimento_min": 0.5,
+    "copertura_testo_min": 0.5,
+    "esclusioni": "contiene un blocco table; copertura di testo < 0.5 (aloni verdi delle illustrazioni)"
+   },
+   "significato": "box_con_titolo_dentro",
+   "titolo_dentro": true,
+   "esempi": [],
+   "conferme": [],
+   "stato": "confermato",
+   "note": "Riquadri verde chiaro disegnati come immagine, con titolo dentro. Si scartano aloni di illustrazioni e tabelle con righe verdi."
+  }
+ ],
+ "regole_comuni": [
+  {
+   "id": "box-struttura-capitolo",
+   "testo": "Un box puo avere una struttura simile a un capitolo (titolo, sottosezioni) ma non spezza il capitolo in cui e inserito: i titoli dentro il box appartengono al box, e dopo il box il capitolo contenitore continua con lo stesso livello di prima.",
+   "confermata_da_utente": "2026-10-29"
+  }
+ ]
+}

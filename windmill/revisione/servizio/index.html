@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Revisione titoli</title>
+<style>
+:root{--bg:#f6f4ef;--card:#fff;--ink:#1f2328;--mut:#6b7280;--line:#ddd8cc;--acc:#1b5e8a;--ok:#2e7d32;--box:#8a5a1b;--no:#a33}
+@media(prefers-color-scheme:dark){:root{--bg:#16181b;--card:#1f2227;--ink:#e8e6e1;--mut:#9aa0a8;--line:#343840;--acc:#6db3e0;--ok:#7bc47f;--box:#d9a35a;--no:#e07a7a}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 system-ui,sans-serif}
+header{position:sticky;top:0;z-index:5;background:var(--card);border-bottom:1px solid var(--line);padding:8px 16px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+header b{flex:1;min-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+main{padding:12px 16px;display:grid;gap:12px;max-width:1100px;margin:0 auto}
+@media(min-width:900px){main.rev{grid-template-columns:1fr 340px}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px}
+.titolo{font-size:1.6rem;font-weight:700;margin:4px 0 8px;overflow-wrap:anywhere}
+.chip{display:inline-block;font-size:.8rem;border:1px solid var(--line);border-radius:99px;padding:1px 8px;margin:0 4px 4px 0;color:var(--mut)}
+.chip.b{color:var(--box);border-color:var(--box)}
+button{font:inherit;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:8px;padding:9px 12px;min-height:42px;cursor:pointer}
+button.p{background:var(--acc);color:#fff;border-color:var(--acc)}
+button.no{color:var(--no)}
+button.bx{color:var(--box)}
+button:disabled{opacity:.4}
+.rig{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0}
+.rig small{width:100%;color:var(--mut)}
+img.pag{width:100%;border:1px solid var(--line);border-radius:6px;margin-top:8px}
+.adj{font-size:.85rem;color:var(--mut);border-left:3px solid var(--line);padding:2px 8px;margin:4px 0;overflow-wrap:anywhere}
+.pan div{padding:3px 6px;border-radius:5px;font-size:.92rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pan .prop{font-style:italic;color:var(--mut)}
+.pan .cur{background:var(--acc);color:#fff;font-style:normal;font-weight:600}
+.pan .inb{color:var(--box)}
+.pan .rm{color:var(--mut);font-size:.8rem}
+.lista div{padding:6px 4px;border-bottom:1px solid var(--line);cursor:pointer;display:flex;gap:8px}
+.lista span.s{width:1.3em;color:var(--ok)}
+#msg{color:var(--mut);padding:24px;text-align:center}
+</style>
+</head>
+<body>
+<header>
+  <b id="tit">Revisione titoli</b>
+  <span id="prog" class="chip"></span>
+  <button id="bRivedi" hidden>Rivedi</button>
+  <button id="bConcludi" hidden class="p">Concludi</button>
+</header>
+<main id="m"><div id="msg">Caricamento…</div></main>
+<script>
+const $ = s => document.querySelector(s);
+const m = $('#m');
+let libro = null, T = [], i = 0, vista = 'rev';
+const api = (u, o) => fetch(u, o).then(r => { if (!r.ok) throw new Error(r.status); return r.json(); });
+const post = (u, b) => api(u, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(b)});
+const esc = s => s.replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
+
+async function home() {
+  libro = null; vista = 'home';
+  $('#tit').textContent = 'Revisione titoli'; $('#prog').textContent = '';
+  $('#bRivedi').hidden = $('#bConcludi').hidden = true;
+  m.className = '';
+  const L = await api('/api/libri');
+  m.innerHTML = L.length
+    ? L.map(l => `<div class="card"><b>${esc(l.libro)}</b><br><span class="chip">${l.decisi}/${l.titoli} decisi</span> <button class="p" data-l="${esc(l.libro)}">Apri</button></div>`).join('')
+    : '<div id="msg">Nessun libro in attesa di revisione.</div>';
+  m.querySelectorAll('button[data-l]').forEach(b => b.onclick = () => apri(b.dataset.l));
+}
+
+async function apri(l) {
+  const r = await api('/api/' + encodeURIComponent(l) + '/dati');
+  libro = l; T = r.titoli;
+  i = Math.max(0, T.findIndex(t => !t.deciso));
+  vista = 'rev';
+  $('#tit').textContent = l;
+  $('#bRivedi').hidden = $('#bConcludi').hidden = false;
+  mostra();
+}
+
+function livPrec(k) { // livello dell'ultimo titolo normale prima di k
+  for (let j = k - 1; j >= 0; j--) if (T[j].classe === 'titolo' && !T[j].in_box) return T[j].livello || 1;
+  return 0;
+}
+
+function pannello() {
+  const vis = T.map((t, k) => [t, k]).filter(([t, k]) => k === i || t.classe === 'titolo' || t.classe === 'box_titolo');
+  const p = vis.findIndex(([, k]) => k === i);
+  return vis.slice(Math.max(0, p - 7), p + 8).map(([t, k]) => {
+    const box = t.classe === 'box_titolo' || t.in_box;
+    const ind = box ? 1.2 : ((t.livello || 1) - 1) * 0.9;
+    const mark = (box ? '▣ ' : '#'.repeat(t.livello || 1) + ' ') + (t.unisci === 'dopo' ? '⤵ ' : t.unisci === 'prima' ? '⤴ ' : '');
+    const c = (k === i ? 'cur' : (t.deciso ? '' : 'prop')) + (box ? ' inb' : '');
+    return `<div class="${c}" style="padding-left:${ind + .4}em" data-k="${k}">${mark}${esc(t.testo)}</div>`;
+  }).join('');
+}
+
+function mostra() {
+  const t = T[i], dec = T.filter(x => x.deciso).length, pl = livPrec(i);
+  $('#prog').textContent = `${dec}/${T.length}`;
+  m.className = 'rev';
+  const lv = [1, 2, 3, 4, 5].map(n => `<button data-c="titolo" data-v="${n}">${'#'.repeat(n)}</button>`).join('');
+  m.innerHTML = `
+  <div>
+    <div class="card">
+      <div>${t.in_box ? '<span class="chip b">dentro un box</span>' : ''}<span class="chip">${esc(t.label)}</span><span class="chip">pag. ${t.pag}</span>${t.motivo ? `<span class="chip">${esc(t.motivo)}</span>` : ''}<span class="chip">proposta: ${esc(t.classe)}${t.livello ? ' ' + '#'.repeat(t.livello) : ''}</span>${t.deciso ? '<span class="chip" style="color:var(--ok)">deciso</span>' : ''}</div>
+      ${t.prima ? `<div class="adj">prima · ${esc(t.prima.label)}: ${esc(t.prima.testo)}</div>` : ''}
+      <div class="titolo">${esc(t.testo)}${t.unisci ? ' <span class="chip b">unito ' + (t.unisci === 'dopo' ? 'con il blocco dopo' : 'con il blocco prima') + '</span>' : ''}</div>
+      ${t.dopo ? `<div class="adj">dopo · ${esc(t.dopo.label)}: ${esc(t.dopo.testo)}</div>` : ''}
+      <div class="rig"><button class="p" id="acc">Accetta proposta</button></div>
+      ${t.label === 'box' ? `<div class="rig"><small>Il riquadro rosso sulla pagina è un box (testo extra dentro il paragrafo)?</small>
+        <button class="bx" data-c="box_senza_titolo">È un box</button>
+        <button class="no" data-c="non_titolo">Non è un box</button>
+        <button data-c="non_so">Non so</button></div>` : ''}
+      ${t.label === 'box' ? '' : `<div class="rig"><small>Titolo, livello rispetto al precedente (${pl ? '#'.repeat(pl) : 'nessuno'})</small>
+        <button data-c="titolo" data-v="${pl || 1}">= uguale</button>
+        <button data-c="titolo" data-v="${Math.min(6, pl + 1)}">dentro ▸</button>
+        <button data-c="titolo" data-v="${Math.max(1, pl - 1)}">◂ fuori</button></div>
+      <div class="rig"><small>Titolo, livello fisso</small>${lv}</div>
+      <div class="rig"><small>Titolo spezzato in più blocchi (tengo il livello proposto)</small>
+        <button data-c="titolo" data-u="dopo">continua nel blocco dopo ▾</button>
+        <button data-c="titolo" data-u="prima">▴ continua dal blocco prima</button>
+        <button data-c="titolo_unito_testo">Titolo unito al testo</button></div>
+      <div class="rig"><small>Non è un titolo normale</small>
+        <button class="bx" data-c="box_titolo">Titolo di box</button>
+        <button data-c="tabella">Tabella / scheda</button>
+        <button data-c="elenco">Elenco (tabella senza sfondo)</button>
+        <button data-c="immagine">Testo di immagine</button>
+        <button class="no" data-c="non_titolo">Non è un titolo</button>
+        <button data-c="non_so">Non so</button></div>`}
+      <div class="rig"><button id="ind">◂ Indietro</button><button id="av">Avanti ▸</button><button id="ann">Annulla ultimo</button></div>
+    </div>
+    <img class="pag" src="/img/${encodeURIComponent(libro)}/${t.pag}.jpg${t.label === 'box' && t.rect ? '?box=' + t.rect.join(',') : ''}" alt="pagina ${t.pag}" onclick="window.open(this.src + (this.src.includes('?') ? '&' : '?') + 'z=2.5')">
+  </div>
+  <div class="card pan"><small class="rm">Titoli intorno (corsivo = solo proposti, ▣ = box)</small>${pannello()}</div>`;
+  m.querySelectorAll('button[data-c]').forEach(b => b.onclick = () => decidi(b.dataset.c, b.dataset.v ? +b.dataset.v : null, b.dataset.u || null));
+  $('#acc').onclick = () => decidi(t.classe, t.livello, t.unisci || null);
+  $('#ind').onclick = () => { if (i > 0) { i--; mostra(); } };
+  $('#av').onclick = () => { if (i < T.length - 1) { i++; mostra(); } };
+  $('#ann').onclick = annulla;
+  m.querySelectorAll('.pan div[data-k]').forEach(d => d.onclick = () => { i = +d.dataset.k; mostra(); });
+}
+
+async function decidi(classe, livello, unisci = null) {
+  const t = T[i];
+  if (classe === 'titolo' && !livello) livello = t.livello || livPrec(i) || 1;
+  try { await post('/api/' + encodeURIComponent(libro) + '/decisione', {id: t.id, classe, livello: classe === 'titolo' ? livello : null, unisci}); }
+  catch (e) { alert('Salvataggio non riuscito (' + e.message + ')'); return; }
+  Object.assign(t, {classe, livello: classe === 'titolo' ? livello : null, deciso: true, unisci});
+  const n = T.findIndex((x, k) => k > i && !x.deciso);
+  i = n >= 0 ? n : Math.min(i + 1, T.length - 1);
+  mostra();
+}
+
+async function annulla() {
+  await post('/api/' + encodeURIComponent(libro) + '/decisione', {annulla: true});
+  const r = await api('/api/' + encodeURIComponent(libro) + '/dati'); T = r.titoli;
+  const j = T.map((x, k) => x.deciso ? k : -1).filter(k => k >= 0);
+  mostra();
+}
+
+function rivedi() {
+  vista = 'lista'; m.className = '';
+  m.innerHTML = '<div class="card lista">' + T.map((t, k) =>
+    `<div data-k="${k}"><span class="s">${t.deciso ? '✓' : ''}</span><span>p.${t.pag} ${t.classe === 'titolo' ? '#'.repeat(t.livello || 1) : '[' + t.classe + ']'} ${esc(t.testo)}</span></div>`).join('') + '</div><button id="torna">Torna alla revisione</button>';
+  m.querySelectorAll('.lista div').forEach(d => d.onclick = () => { i = +d.dataset.k; mostra(); });
+  $('#torna').onclick = mostra;
+}
+
+$('#bRivedi').onclick = rivedi;
+$('#bConcludi').onclick = async () => {
+  const mancano = T.filter(t => !t.deciso).length;
+  if (!confirm(mancano ? `Mancano ${mancano} titoli non decisi (restano con la proposta). Concludere?` : 'Concludere la revisione?')) return;
+  try { const r = await post('/api/' + encodeURIComponent(libro) + '/concludi', {}); alert('Revisione conclusa (' + r.titoli + ' titoli). Ripresa: ' + (r.ripresa || 'nessun flusso collegato')); home(); }
+  catch (e) { alert('Non riuscito (' + e.message + ')'); }
+};
+home().catch(e => { m.innerHTML = '<div id="msg">Errore: ' + e.message + '</div>'; });
+</script>
+</body>
+</html>

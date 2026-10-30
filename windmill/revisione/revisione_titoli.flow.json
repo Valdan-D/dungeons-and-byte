@@ -1,0 +1,148 @@
+{
+ "summary": "Revisione titoli e box (al posto di Ricapitolando FASE 1)",
+ "description": "Controlla il libro, prepara proposte e box, si ferma per la revisione nel servizio, poi scrive la bozza dei capitoli e lancia la FASE 2. Non usa la GPU.",
+ "value": {
+  "modules": [
+   {
+    "id": "a",
+    "value": {
+     "path": "f/revisione/controlla_completezza",
+     "type": "script",
+     "input_transforms": {
+      "progetto": {
+       "expr": "flow_input.progetto",
+       "type": "javascript"
+      },
+      "riprepara": {
+       "expr": "flow_input.riprepara",
+       "type": "javascript"
+      },
+      "cartella_output": {
+       "expr": "flow_input.cartella_output",
+       "type": "javascript"
+      }
+     }
+    },
+    "summary": "Controllo di completezza"
+   },
+   {
+    "id": "b",
+    "value": {
+     "path": "f/revisione/prepara_revisione",
+     "type": "script",
+     "input_transforms": {
+      "progetto": {
+       "expr": "flow_input.progetto",
+       "type": "javascript"
+      },
+      "resume_url": {
+       "type": "static",
+       "value": ""
+      },
+      "cartella_output": {
+       "expr": "flow_input.cartella_output",
+       "type": "javascript"
+      }
+     }
+    },
+    "summary": "Prepara proposte e box"
+   },
+   {
+    "id": "c",
+    "value": {
+     "path": "f/revisione/attesa_revisione",
+     "type": "script",
+     "input_transforms": {
+      "progetto": {
+       "expr": "flow_input.progetto",
+       "type": "javascript"
+      },
+      "cartella_output": {
+       "expr": "flow_input.cartella_output",
+       "type": "javascript"
+      }
+     }
+    },
+    "summary": "PAUSA: revisione nel servizio (premi Concludi)",
+    "suspend": {
+     "timeout": 1209600,
+     "required_events": 1,
+     "user_auth_required": false
+    }
+   },
+   {
+    "id": "d",
+    "value": {
+     "path": "f/revisione/scrivi_bozza",
+     "type": "script",
+     "input_transforms": {
+      "progetto": {
+       "expr": "flow_input.progetto",
+       "type": "javascript"
+      },
+      "cartella_output": {
+       "expr": "flow_input.cartella_output",
+       "type": "javascript"
+      }
+     }
+    },
+    "summary": "Scrive la bozza dei capitoli"
+   },
+   {
+    "id": "e",
+    "value": {
+     "path": "f/ricapitolando/fase2",
+     "type": "flow",
+     "input_transforms": {
+      "progetto": {
+       "expr": "flow_input.progetto",
+       "type": "javascript"
+      },
+      "cartella_output": {
+       "expr": "flow_input.cartella_output",
+       "type": "javascript"
+      }
+     }
+    },
+    "skip_if": {
+     "expr": "!flow_input.lancia_fase2"
+    },
+    "summary": "Ricapitolando FASE 2"
+   }
+  ]
+ },
+ "schema": {
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "order": [
+   "progetto",
+   "riprepara",
+   "lancia_fase2",
+   "cartella_output"
+  ],
+  "required": [
+   "progetto"
+  ],
+  "properties": {
+   "progetto": {
+    "type": "string",
+    "description": "Libro (PDF in pool, OCR gia' fatto)"
+   },
+   "riprepara": {
+    "type": "boolean",
+    "default": false,
+    "description": "Ripartire da zero se esistono gia' decisioni (la storia viene tenuta)"
+   },
+   "lancia_fase2": {
+    "type": "boolean",
+    "default": true,
+    "description": "Dopo la revisione lancia Ricapitolando FASE 2"
+   },
+   "cartella_output": {
+    "type": "string",
+    "default": "",
+    "description": "Solo per prove: scrive qui invece che nel progetto e in estrazione/"
+   }
+  }
+ }
+}
