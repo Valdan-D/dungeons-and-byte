@@ -17,7 +17,7 @@ TIT = ("paragraph_title", "doc_title", "figure_title")
 def norm(s):
     s = re.sub(r"<[^>]+>", " ", s)
     s = re.sub(r"[*_`#>|\\$^{}]", " ", s)
-    return re.sub(r"\s+", " ", s).strip().lower()
+    return re.sub(r"[.\u2026\s]+$", "", re.sub(r"\s+", " ", s).strip().lower())  # i puntini finali ("DIVENTARE UN BARDO...") non contano
 
 
 def prima_riga(b):
@@ -38,6 +38,14 @@ def mappa_pagina(md_righe, blocchi):
                 inizio[i] = k
                 cur = k + 1
                 break
+        else:
+            if blocchi[i].get("block_order") is None:  # senza ordine di lettura sta in fondo alla lista: lo si cerca anche prima del cursore
+                usate = set(inizio.values())
+                for k in range(len(md_righe)):
+                    ln = norm(md_righe[k])
+                    if k not in usate and ln and (ln == t or (len(t) >= 6 and (ln.startswith(t[:40]) or t in ln))):
+                        inizio[i] = k
+                        break
     ordinati = sorted(inizio.items(), key=lambda x: x[1])
     fine = {}
     for n, (i, k) in enumerate(ordinati):
@@ -67,6 +75,7 @@ def main(progetto: str, cartella_output: str = ""):
     da_verificare, n_box, n_head = [], 0, 0
     out_lines = []  # (testo, pagina)
     ultimo_livello = 1
+    ultimo_testo = ""
 
     for n in sorted(pagine_md):
         testo = re.sub(r"^# .+? - Pagina \d+\s*\n", "", pagine_md[n])
@@ -96,12 +105,14 @@ def main(progetto: str, cartella_output: str = ""):
             if p.get("sintetico"):
                 if cl == "titolo":
                     ultimo_livello = lv or ultimo_livello
+                    ultimo_testo = f["testo"]
                     cima.append("#" * min(lv or 1, 6) + " " + f["testo"].split("\n")[0].strip())
                 continue
             idx = ord_[p["pos"]] if 0 <= p["pos"] < len(ord_) else None
             L = mappa.get(idx, (None,))[0] if idx is not None else None
             if cl == "titolo":
                 ultimo_livello = lv or ultimo_livello
+                ultimo_testo = f["testo"]
                 if L is None:
                     da_verificare.append("p.%d titolo non trovato nel markdown: %r" % (n, p["testo"][:60]))
                     continue
@@ -123,6 +134,13 @@ def main(progetto: str, cartella_output: str = ""):
                         rimosse.add(L)
                         L = q
                 titoli_riga[L] = lv or 2
+                if idx is not None and "\n" in (blocchi[idx].get("block_content") or "").strip():  # blocco "titolo + testo": il titolo e' la prima riga
+                    titolo = prima_riga(blocchi[idx]).strip()
+                    riga = re.sub(r"</?div[^>]*>", "", base[L]).strip()
+                    # solo se la prima riga e' tutta maiuscola e il resto e' testo (ha minuscole): un titolo andato a capo ha anche la seconda riga maiuscola
+                    if titolo and titolo == titolo.upper() and len(riga) > len(titolo) and riga.lower().startswith(titolo.lower()) and re.search(r"[a-zà-ù]", re.sub(r"\$.*?\$", "", riga[len(titolo):])):
+                        base[L] = titolo
+                        resto[L] = riga[len(titolo):].strip()
             elif cl == "titolo_unito_testo":
                 if L is None:
                     da_verificare.append("p.%d titolo unito al testo non trovato: %r" % (n, p["testo"][:60]))
@@ -130,12 +148,15 @@ def main(progetto: str, cartella_output: str = ""):
                 titolo = p["testo"].split("\n")[0].strip()
                 riga = base[L].strip()
                 rest = riga[len(titolo):].strip() if riga.lower().startswith(titolo.lower()) else ""
-                lvl = min(ultimo_livello + 1, 6)
+                # stessa prima parola del titolo precedente (LIVELLO..., INCANTESIMO...): e' un fratello, stesso livello; altrimenti uno sotto
+                prima_parola = lambda t: (t.split() or [""])[0].upper()
+                fratello = prima_parola(titolo) != "" and prima_parola(titolo) == prima_parola(ultimo_testo)
+                lvl = min(ultimo_livello if fratello else ultimo_livello + 1, 6)
                 base[L] = titolo
                 titoli_riga[L] = lvl
                 if rest:
                     resto[L] = rest
-                da_verificare.append("p.%d %r: titolo unito al testo, livello assunto %d (uno sotto il titolo precedente)" % (n, titolo[:40], lvl))
+                da_verificare.append("p.%d %r: titolo unito al testo, livello assunto %d (%s)" % (n, titolo[:40], lvl, "come il titolo precedente" if fratello else "uno sotto il titolo precedente"))
 
         # box di questa pagina
         in_box = {}
@@ -165,7 +186,7 @@ def main(progetto: str, cartella_output: str = ""):
         for k, r in enumerate(base):
             if k in rimosse:
                 continue
-            r = r if k not in titoli_riga else "#" * min(titoli_riga[k], 6) + " " + r.strip()
+            r = r if k not in titoli_riga else "#" * min(titoli_riga[k], 6) + " " + re.sub(r"</?div[^>]*>", "", r).strip()
             if k in titoli_riga:
                 n_head += 1
             if k in in_box:
