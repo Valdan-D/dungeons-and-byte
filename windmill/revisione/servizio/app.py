@@ -184,7 +184,7 @@ def img(libro, pag):
     pagina = doc[pag - 1]
     try:  # riquadro del candidato box (punti PDF): lo si disegna in rosso sulla pagina, solo in memoria
         x0, y0, x1, y1 = [float(v) for v in request.args.get("box", "").split(",")]
-        pagina.draw_rect(pymupdf.Rect(x0, y0, x1, y1), color=(0.9, 0, 0), width=3)
+        pagina.draw_rect(pymupdf.Rect(x0 - 6, y0 - 6, x1 + 6, y1 + 6), color=(0.9, 0, 0), width=2)  # qualche punto fuori dal bordo: la cornice vera resta visibile
     except ValueError:
         pass
     pix = pagina.get_pixmap(matrix=pymupdf.Matrix(z, z), colorspace=pymupdf.csRGB, alpha=False)
