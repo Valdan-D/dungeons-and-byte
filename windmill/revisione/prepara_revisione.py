@@ -347,6 +347,23 @@ def _ok_candidato(R, dentro, larg_pagina):
     return sum((pymupdf.Rect(b["r"]) & R).get_area() for b in testo) / max(R.get_area(), 1) >= 0.35
 
 
+def _soglia_sfondo(doc, pag):
+    """Soglia di colore per il generatore 'sfondo diverso dalla carta'. Su una scansione con carta irregolare lo scarto tipico di un blocco
+    dalla carta della sua pagina e' alto (una scansione antica ~12; libri puliti 0-7): li' la soglia sale a 45, sopra il rumore e sotto i box veri (57-73)."""
+    ds = []
+    for n in sorted(pag)[::max(1, len(pag) // 60)]:
+        if n > len(doc):
+            continue
+        j = pag[n]
+        pix = doc[n - 1].get_pixmap(matrix=pymupdf.Matrix(1, 1), colorspace=pymupdf.csRGB, alpha=False)
+        cb = [bg_block(pix, b["block_bbox"], j["width"]) for b in j["parsing_res_list"] if b["block_label"] in TESTO and b.get("block_bbox")]
+        cb = [c for c in cb if c]
+        if cb:
+            ref = [st.median(c[k] for c in cb) for k in range(3)]
+            ds += [math.dist(c, ref) for c in cb]
+    return PAR_SFONDO["distanza_min"] if not ds or st.median(ds) <= 10 else 45
+
+
 def trova_box(libro, pag, catalogo):
     """Candidati box: area con testo e sfondo/cornice diversi dalla pagina. Piu' generatori (disegni vettoriali del catalogo,
     sfondo del blocco diverso dalla carta, pixel rosa/lilla e verdi, immagini con cornice ornamentale), stessi filtri.
@@ -355,6 +372,7 @@ def trova_box(libro, pag, catalogo):
     doc = pymupdf.open(BASE + "pool/" + libro + ".pdf")
     box = []
     colori_schede = []
+    soglia_sfondo = _soglia_sfondo(doc, pag)
     for n in sorted(pag):
         if n > len(doc):
             continue
@@ -375,6 +393,10 @@ def trova_box(libro, pag, catalogo):
             cand.append((r, "raster-riquadro-rosa-lilla"))
         for r in trova_pixel(p, PAR_VERDE, _verde):
             cand.append((r, "raster-riquadro-verde"))
+        for z in j.get("dnb_zone", []):  # box del rilevatore di layout (passo rileva-zone dell'OCR): una fonte in piu', stessi filtri
+            if z["label"] == "box":
+                cand.append(([v * s for v in z["bbox"]], "rilevatore-layout"))
+        schede = [pymupdf.Rect([v * s for v in z["bbox"]]) for z in j.get("dnb_zone", []) if z["label"] == "scheda"]
         pix = p.get_pixmap(matrix=pymupdf.Matrix(1, 1), colorspace=pymupdf.csRGB, alpha=False)
         cb = []
         for b in bl:
@@ -385,7 +407,7 @@ def trova_box(libro, pag, catalogo):
                     cb.append(b)
         if cb:
             ref = [st.median(b["c"][k] for b in cb) for k in range(3)]
-            fl = [b for b in cb if math.dist(b["c"], ref) > PAR_SFONDO["distanza_min"] and sum(b["c"]) / 3 >= PAR_SFONDO["luminosita_min"]]
+            fl = [b for b in cb if math.dist(b["c"], ref) > soglia_sfondo and sum(b["c"]) / 3 >= PAR_SFONDO["luminosita_min"]]
             fl.sort(key=lambda b: (b["r"][0] // 150, b["r"][1]))
             cl = []
             for b in fl:
@@ -412,6 +434,8 @@ def trova_box(libro, pag, catalogo):
                 unici.append({"R": R, "voci": {voce}})
         for u in unici:
             R = u["R"]
+            if any((R & S).get_area() >= 0.5 * R.get_area() for S in schede):
+                continue  # dentro una scheda di mostro trovata dal rilevatore: non e' un box
             dentro = _dentro(R, bl)
             if not _ok_candidato(R, dentro, p.rect.width):
                 continue

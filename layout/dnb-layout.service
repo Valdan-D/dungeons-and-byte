@@ -1,0 +1,13 @@
+[Unit]
+Description=D&B rilevatore box e schede mostri
+After=network.target
+
+[Service]
+WorkingDirectory=/opt/dnb-layout
+Environment=DNB_LAYOUT_MODEL=/opt/dnb-layout/layout4_best.pt
+ExecStart=/opt/dnb-layout/venv/bin/python /opt/dnb-layout/layout_gateway.py
+Restart=on-failure
+Nice=10
+
+[Install]
+WantedBy=multi-user.target

@@ -17,7 +17,7 @@ TIT = ("paragraph_title", "doc_title", "figure_title")
 def norm(s):
     s = re.sub(r"<[^>]+>", " ", s)
     s = re.sub(r"[*_`#>|\\$^{}]", " ", s)
-    return re.sub(r"[.\u2026\s]+$", "", re.sub(r"\s+", " ", s).strip().lower())  # i puntini finali ("DIVENTARE UN BARDO...") non contano
+    return re.sub(r"[.\u2026]+$", "", re.sub(r"\s+", "", s).lower())  # puntini finali ("DIVENTARE UN BARDO...") e spazi ("6A." / "6 A.") non contano
 
 
 def prima_riga(b):
