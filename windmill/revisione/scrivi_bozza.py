@@ -2,8 +2,10 @@
 
 Scrive <out>/estrazione/bozze_capitoli/<progetto>.md nello stesso formato di Ricapitolando FASE 1
 (# capitolo, ## paragrafo, ### ... sottoparagrafo; box come blockquote '> **[BOX: nome]**'),
-cosi' la FASE 2 resta invariata. Se la bozza esiste gia' ne tiene una copia datata."""
+cosi' la FASE 2 resta invariata. Se la bozza esiste gia' ne tiene una copia datata.
+Se la bozza attiva e' stata modificata a mano dopo l'ultima scrittura automatica, NON la sovrascrive (scrive <progetto>.auto.md)."""
 import glob
+import hashlib
 import json
 import os
 import re
@@ -53,7 +55,7 @@ def mappa_pagina(md_righe, blocchi):
     return ord_, {i: (inizio[i], fine[i]) for i in inizio}
 
 
-def main(progetto: str, cartella_output: str = ""):
+def main(progetto: str, cartella_output: str = "", forza: bool = False):
     base_out = (cartella_output or "/shared/projects").rstrip("/")
     rev = base_out + "/" + progetto + "/revisione"
     fin = json.load(open(rev + "/finale.json", encoding="utf-8"))["titoli"]
@@ -217,10 +219,38 @@ def main(progetto: str, cartella_output: str = ""):
     d = base_out + "/estrazione/bozze_capitoli" if cartella_output else "/shared/projects/estrazione/bozze_capitoli"
     os.makedirs(d, exist_ok=True)
     bozza = d + "/" + progetto + ".md"
+    testo_auto = legenda + assembled
     copia = None
+    proposta_auto = None
+    # Protezione delle correzioni a mano: l'impronta dell'ultima bozza scritta da qui sta in stato.json.
+    # Se il file attivo e' diverso (qualcuno l'ha modificato) NON lo si sovrascrive: la nuova versione automatica
+    # va accanto, in <progetto>.auto.md, e il file modificato resta quello attivo (la FASE 2 lo leggera' cosi' com'e').
+    stato_f = rev + "/stato.json"
+    try:
+        stato = json.load(open(stato_f, encoding="utf-8"))
+    except (OSError, ValueError):
+        stato = {}
+    impronta_nota = stato.get("bozza_sha256")
     if os.path.exists(bozza):
+        attuale = hashlib.sha256(open(bozza, "rb").read()).hexdigest()
+        if impronta_nota and attuale != impronta_nota and not forza:
+            proposta_auto = d + "/" + progetto + ".auto.md"
+            open(proposta_auto, "w", encoding="utf-8").write(testo_auto)
+            stato["bozza_modificata_a_mano"] = time.strftime("%Y-%m-%dT%H:%M:%S")
+            stato["bozza_auto"] = proposta_auto
+            json.dump(stato, open(stato_f, "w", encoding="utf-8"), ensure_ascii=False)
+            open(d + "/" + progetto + "_da_verificare.txt", "w", encoding="utf-8").write("Report revisione titoli - %s\n" % progetto + "\n".join(da_verificare) + "\n")
+            return {"bozza": bozza, "bozza_modificata_a_mano": True, "non_sovrascritta": True, "proposta_automatica": proposta_auto,
+                    "intestazioni": n_head, "box": n_box, "da_verificare": len(da_verificare)}
         copia = bozza + ".bak-" + time.strftime("%Y%m%d-%H%M%S")
         shutil.copy2(bozza, copia)
-    open(bozza, "w", encoding="utf-8").write(legenda + assembled)
+    open(bozza, "w", encoding="utf-8").write(testo_auto)
+    try:
+        stato["bozza_sha256"] = hashlib.sha256(testo_auto.encode("utf-8")).hexdigest()
+        stato.pop("bozza_modificata_a_mano", None)
+        stato.pop("bozza_auto", None)
+        json.dump(stato, open(stato_f, "w", encoding="utf-8"), ensure_ascii=False)
+    except OSError:
+        pass
     open(d + "/" + progetto + "_da_verificare.txt", "w", encoding="utf-8").write("Report revisione titoli - %s\n" % progetto + "\n".join(da_verificare) + "\n")
     return {"bozza": bozza, "copia_precedente": copia, "intestazioni": n_head, "box": n_box, "da_verificare": len(da_verificare)}

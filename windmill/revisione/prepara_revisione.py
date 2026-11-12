@@ -1,5 +1,7 @@
 # requirements:
 # pymupdf
+# scikit-learn
+# numpy
 """Revisione titoli - passo 'prepara': proposte automatiche + box -> <out>/<progetto>/revisione/.
 
 Legge (sempre da /shared/projects/<progetto>): json/pag_N_res.json, il PDF in pool/ e il catalogo dei box.
@@ -32,6 +34,11 @@ def regola(testo):
     return None
 
 
+# intestazione di tabella di dadi: "d12 Effetto", "d6 Gesta compiute", "1d100 Monile" (dado valido + testo). NON i codici di stanza
+# con i due punti ("D3: Tana dei lupi"), che sono titoli veri. Misurata sulle decisioni umane di 3 libri: 42 voci, 0 titoli veri.
+RE_DADI = re.compile(r"^\s*\d*\s*[dD]\s*(4|6|8|10|12|20|100|%)\s+(?![:.])\S")
+
+
 def solo_numeri(t):
     t = t.lower()
     # solo numeri o una notazione di dadi ("2d6", "d20+3"); NON i codici di area come "D3: Tana dei lupi"
@@ -43,6 +50,34 @@ def leggi_pagine(libro):
     for f in glob.glob(BASE + libro + "/json/pag_*_res.json"):
         pag[int(re.search(r"pag_(\d+)_res", f).group(1))] = json.load(open(f))
     return pag
+
+
+# copertina e crediti: il marchio da solo ("DUNGEONS & DRAGONS") non e' un titolo; le voci dei crediti sulla stessa pagina di
+# "Riconoscimenti" ("In copertina", "Studio D&D", "Localizzazione"...) nemmeno. Il titolo del libro (copertina e frontespizio) e
+# "Riconoscimenti" restano titoli. Regola ricavata dalle decisioni umane su quattro libri.
+def _chiave_testo(t):
+    t = re.sub(r"\$[^$]*\$", " ", t or "")
+    return re.sub(r"[^a-z0-9]", "", t.lower().replace("&", ""))
+
+
+def copertina_e_crediti(out):
+    n_marchio = n_crediti = 0
+    crediti_pag = None
+    for p in out:  # in ordine di lettura
+        if p["proposta"] not in ("titolo",):
+            continue
+        k = _chiave_testo(p["testo"])
+        if p["pag"] <= 3 and k in ("dungeonsdragons", "dungeonsanddragons"):
+            p["proposta"], p["motivo"], p["livello_proposto"] = "non_titolo", "marchio (non e' un titolo)", None
+            n_marchio += 1
+            continue
+        if p["pag"] <= 8 and k in ("riconoscimenti", "crediti"):
+            crediti_pag = p["pag"]
+            continue
+        if crediti_pag is not None and p["pag"] == crediti_pag:
+            p["proposta"], p["motivo"], p["livello_proposto"] = "non_titolo", "voce dei crediti (sotto 'Riconoscimenti')", None
+            n_crediti += 1
+    return n_marchio, n_crediti
 
 
 def proposte(pag):
@@ -75,6 +110,8 @@ def proposte(pag):
             classe, motivo = "non_titolo", "testo ripetuto %d volte" % ripet[t.lower()]
         elif solo_numeri(t):
             classe, motivo = "non_titolo", "solo numeri/dadi"
+        elif RE_DADI.match(t):
+            classe, motivo = "tabella", "intestazione di tabella di dadi"
         elif succ and succ["label"] == "table":
             classe, motivo = "tabella", "tabella subito dopo"
         h = (b["bbox"][3] - b["bbox"][1]) * 1000 / b["H"] if b["bbox"] else 0
@@ -88,6 +125,7 @@ def proposte(pag):
         out.append({"pag": b["pag"], "pos": b["pos"], "idx": b["idx"], "label": b["label"], "testo": t, "bbox": b["bbox"],
                     "altezza_mille": round(h, 1), "proposta": classe, "motivo": motivo,
                     "livello_proposto": liv if classe == "titolo" else None, "prima": vic(b["pos"] - 1), "dopo": vic(b["pos"] + 1)})
+    copertina_e_crediti(out)
     return out
 
 
@@ -349,7 +387,7 @@ def _ok_candidato(R, dentro, larg_pagina):
 
 def _soglia_sfondo(doc, pag):
     """Soglia di colore per il generatore 'sfondo diverso dalla carta'. Su una scansione con carta irregolare lo scarto tipico di un blocco
-    dalla carta della sua pagina e' alto (una scansione antica ~12; libri puliti 0-7): li' la soglia sale a 45, sopra il rumore e sotto i box veri (57-73)."""
+    dalla carta della sua pagina e' alto (un libro rumoroso ~12; libri puliti 0-7): li' la soglia sale a 45, sopra il rumore e sotto i box veri (57-73)."""
     ds = []
     for n in sorted(pag)[::max(1, len(pag) // 60)]:
         if n > len(doc):
@@ -462,6 +500,407 @@ def trova_box(libro, pag, catalogo):
     return box
 
 
+# ---------- livello dei titoli dall'indice (segnalibri) del PDF ----------
+def _norm_ix(t):
+    return re.sub(r"[^a-z0-9à-ù]", "", (t or "").lower())
+
+
+def _senza_accenti(t):
+    import unicodedata
+    return "".join(c for c in unicodedata.normalize("NFKD", t or "") if not unicodedata.combining(c))
+
+
+def _nome_ix(t):
+    """Nome di un mostro/PNG come lo scrive l'indice: senza 'Stat Block:' davanti e senza il tipo dopo il trattino ("Aboleth - Aberrazione Grande")."""
+    t = re.sub(r"^\s*(stat\s*block|box)\s*[:\-\u2013]\s*", "", t or "", flags=re.I)
+    return _norm_ix(_senza_accenti(re.split(r"\s+[-\u2013\u2014]\s+", t)[0]))
+
+
+def _in_zona(pag_json, bbox):
+    cx, cy = (bbox[0] + bbox[2]) / 2, (bbox[1] + bbox[3]) / 2
+    for z in pag_json.get("dnb_zone") or []:
+        if z.get("label") in ("scheda", "box") and z["bbox"][0] <= cx <= z["bbox"][2] and z["bbox"][1] <= cy <= z["bbox"][3]:
+            return True
+    return False
+
+
+def _stile_titolo(doc, b, cache):
+    """(corpo arrotondato a 0,5 pt, font, colore, flags) del testo piu' lungo del titolo; None se nel PDF non c'e' testo."""
+    n = b["pag"]
+    if n not in cache:
+        pg = doc[n - 1]
+        cache[n] = (pg, pg.rect.width / b["W"], pg.rect.height / b["H"])
+    pg, sx, sy = cache[n]
+    r = pymupdf.Rect(b["bbox"][0] * sx - 1, b["bbox"][1] * sy - 1, b["bbox"][2] * sx + 1, b["bbox"][3] * sy + 1)
+    try:
+        sp = [s for bl in pg.get_text("dict", clip=r)["blocks"] if bl.get("type") == 0 for l in bl["lines"] for s in l["spans"] if s["text"].strip()]
+    except Exception:
+        return None
+    if not sp:
+        return None
+    c = collections.Counter()
+    for s in sp:
+        c[(round(s["size"] * 2) / 2, s["font"], s["color"], s["flags"])] += len(s["text"])
+    return c.most_common(1)[0][0]
+
+
+def _linea_sotto(doc, T, zoom=3):
+    """True se sotto il titolo c'e' una sottile linea orizzontale (immagine) larga come il titolo: banda di righe di pixel scure
+    (>=35 grigi sotto la carta su >=90% della larghezza), spessa al massimo 2,5 pt, isolata sopra e sotto."""
+    import numpy as np
+    res, cache = [], {}
+    for b in T:
+        n = b["pag"]
+        if n not in cache:
+            cache.clear()
+            pg = doc[n - 1]
+            pm = pg.get_pixmap(matrix=pymupdf.Matrix(zoom, zoom), colorspace=pymupdf.csGRAY)
+            cache[n] = (np.frombuffer(pm.samples, dtype=np.uint8).reshape(pm.h, pm.w).astype(np.int16), pg.rect.width / b["W"], pg.rect.height / b["H"])
+        a, sx, sy = cache[n]
+        h = a.shape[0]
+        x0, x1, y1 = int(b["bbox"][0] * sx * zoom), int(b["bbox"][2] * sx * zoom), int(b["bbox"][3] * sy * zoom)
+        if x1 - x0 < 20:
+            res.append(0.0)
+            continue
+        ya, yb = max(0, y1 - zoom), min(h, y1 + 14 * zoom)
+        reg = a[ya:yb, x0:x1]
+        if reg.shape[0] < 6:
+            res.append(0.0)
+            continue
+        fondo = np.percentile(a[max(0, y1 - 30 * zoom):yb, x0:x1], 90)
+        cop = ((fondo - reg) >= 35).mean(axis=1)
+        trov, i, n_, mx = False, 0, len(cop), int(2.5 * zoom)
+        while i < n_:
+            if cop[i] >= 0.9:
+                j = i
+                while j + 1 < n_ and cop[j + 1] >= 0.9:
+                    j += 1
+                prima = cop[max(0, i - 4):i].max() if i > 0 else 0.0
+                dopo = cop[j + 1:j + 5].max() if j + 1 < n_ else 0.0
+                if (j - i + 1) <= mx and prima < 0.75 and dopo < 0.75:
+                    trov = True
+                    break
+                i = j + 1
+            else:
+                i += 1
+        res.append(float(trov))
+    return res
+
+
+def _caratteristiche_livello(T, S, lin):
+    import numpy as np
+    hs = [(b["bbox"][3] - b["bbox"][1]) / b["H"] / (b["t"].count("\n") + 1) for b in T]
+    hm = st.median(hs)
+    sizes = [s[0] for s in S if s]
+    sm = st.median(sizes)
+    fc = collections.Counter(s[1] for s in S if s)
+    cc = collections.Counter(s[2] for s in S if s)
+    rip = collections.Counter(b["t"].lower() for b in T)
+    nan = float("nan")
+    X = []
+    for k, b in enumerate(T):
+        t, s, bb = b["t"], S[k], b["bbox"]
+        letters = [c for c in t if c.isalpha()]
+        col = s[2] if s else 0
+        X.append([s[0] if s else nan, (s[0] / sm) if s else nan, fc[s[1]] / len(sizes) if s else nan, cc[s[2]] / len(sizes) if s else nan,
+                  ((col >> 16) & 255) if s else nan, ((col >> 8) & 255) if s else nan, (col & 255) if s else nan,
+                  float(bool(s[3] & 16) or ("bold" in s[1].lower())) if s else nan, float(bool(s[3] & 2)) if s else nan,
+                  hs[k] / hm, (sum(c.isupper() for c in letters) / len(letters)) if letters else 0.0, len(t), len(t.split()), t.count("\n") + 1,
+                  (bb[2] - bb[0]) / b["W"], abs((bb[0] + bb[2]) / 2 / b["W"] - 0.5), bb[0] / b["W"], bb[1] / b["H"], b["pag"] / b["npag"],
+                  float(bool(re.match(r"^\s*\d+[A-Za-z]?[.)]?\s", t))), float(t.rstrip().endswith(":")), float(t.rstrip().endswith(".")),
+                  rip[t.lower()] / len(T), b["prima_tit"], b["dopo_tit"], b["prima_none"],
+                  float(b["label"] == "doc_title"), float(b["label"] == "figure_title"), lin[k]])
+    X = np.array(X, dtype=float)
+    sz = X[:, 0]
+    prev, nxt = np.r_[np.nan, sz[:-1]], np.r_[sz[1:], np.nan]
+    with np.errstate(divide="ignore", invalid="ignore"):
+        return np.c_[X, prev, nxt, sz / prev, sz / nxt]
+
+
+def titoli_in_schede(doc, pag, prop):
+    """Nei PDF con testo nativo i titoli dentro una scheda (zona 'scheda' di dnb_zone: "Azioni", "Reazioni", il nome in testa alla scheda...)
+    non sono titoli di capitolo. Misurato sulle decisioni umane dei libri con testo: 150 su 152 non erano titoli. Nelle scansioni
+    le zone di scheda (YOLO) sono inaffidabili (in un libro: 78 su 101 erano titoli veri): li' la regola non si applica."""
+    n = len(doc)
+    campione = list(range(0, n, max(1, n // 20)))
+    if sum(1 for i in campione if len(doc[i].get_text().strip()) > 50) < 0.5 * len(campione):
+        return {"usato": False, "motivo": "PDF senza testo nativo (scansione)"}
+    cambiati = 0
+    for p in prop:
+        if p["proposta"] != "titolo" or p.get("idx") is None or not p.get("bbox"):
+            continue
+        cx, cy = (p["bbox"][0] + p["bbox"][2]) / 2, (p["bbox"][1] + p["bbox"][3]) / 2
+        for z in pag[p["pag"]].get("dnb_zone") or []:
+            if z.get("label") == "scheda" and z["bbox"][0] <= cx <= z["bbox"][2] and z["bbox"][1] <= cy <= z["bbox"][3]:
+                p["proposta"], p["motivo"], p["livello_proposto"] = "non_titolo", "dentro una scheda (zona rilevata)", None
+                cambiati += 1
+                break
+    return {"usato": True, "titoli_in_schede": cambiati}
+
+
+def livelli_da_indice(doc, pag, prop, minimo_abbinati=40):
+    """Se il PDF ha un indice (segnalibri) con piu' livelli, il livello dei titoli ne viene proposto cosi':
+    - i titoli che corrispondono a una voce dell'indice prendono il livello dell'indice;
+    - gli altri lo prendono da un classificatore addestrato su QUEL libro con le voci abbinate (corpo, font, colore, grassetto,
+      maiuscole, posizione, titoli vicini, linea sotto il titolo). I titoli dentro schede e box non servono ne' vengono toccati.
+    Cambia solo `livello_proposto` dei titoli gia' proposti come 'titolo'. Senza indice utilizzabile non cambia nulla."""
+    import difflib
+    import numpy as np
+    from sklearn.ensemble import HistGradientBoostingClassifier as HGB
+    toc = doc.get_toc()
+    if len(toc) < 30 or len({l for l, _, _ in toc}) < 2:
+        return {"usato": False, "motivo": "il PDF non ha un indice utilizzabile (%d voci)" % len(toc)}
+    npag = len(pag)
+    cache_lab = {}
+    T = []
+    for k, p in enumerate(prop):
+        if p.get("idx") is None or p["label"] not in TIT or not p.get("bbox"):
+            continue
+        n = p["pag"]
+        if n not in cache_lab:
+            L = pag[n]["parsing_res_list"]
+            o = sorted(range(len(L)), key=lambda i: (L[i].get("block_order") if L[i].get("block_order") is not None else 10 ** 6 + i))
+            cache_lab[n] = [L[i]["block_label"] for i in o]
+        labs, pos = cache_lab[n], p["pos"]
+        T.append({"k": k, "pag": n, "npag": npag, "bbox": p["bbox"], "W": pag[n]["width"], "H": pag[n]["height"], "t": p["testo"], "label": p["label"],
+                  "zona": bool(p.get("in_box")) or _in_zona(pag[n], p["bbox"]),
+                  "prima_tit": float(pos > 0 and labs[pos - 1] in TIT), "dopo_tit": float(pos + 1 < len(labs) and labs[pos + 1] in TIT), "prima_none": float(pos == 0)})
+    if len(T) < minimo_abbinati:
+        return {"usato": False, "motivo": "troppo pochi titoli (%d)" % len(T)}
+    # abbinamento voci dell'indice -> titoli (stessa pagina, testo uguale o simile >= 0,85), solo fuori da schede e box
+    per = collections.defaultdict(list)
+    for i, b in enumerate(T):
+        if not b["zona"]:
+            per[b["pag"]].append(i)
+    abb = {}
+    for lv, titolo, p in toc:
+        nt = _norm_ix(titolo)
+        if len(nt) < 3:
+            continue
+        best = (0.0, None)
+        for i in per.get(p, []):
+            nb = _norm_ix(T[i]["t"])
+            r = 1.0 if nb == nt else difflib.SequenceMatcher(None, nt, nb).ratio()
+            if r > best[0]:
+                best = (r, i)
+        if best[0] >= 0.85 and best[1] not in abb:
+            abb[best[1]] = lv
+    # secondo passaggio: l'indice scrive i mostri "Aboleth - Aberrazione Grande" / "Stat Block: Aboleth"; si confronta il solo nome
+    # (stessa pagina, senza accenti), solo per i titoli ancora non abbinati e prima le voci che non sono 'Stat Block'
+    for lv, titolo, p in sorted(toc, key=lambda x: x[1].lower().lstrip().startswith("stat")):
+        nt2 = _nome_ix(titolo)
+        if len(nt2) < 4:
+            continue
+        for i in per.get(p, []):
+            if i not in abb and _nome_ix(T[i]["t"].split("\n")[0]) == nt2:
+                abb[i] = lv
+                break
+    cache = {}
+    S = [_stile_titolo(doc, b, cache) for b in T]
+    idx = [i for i in abb if S[i]]
+    if len(idx) < minimo_abbinati or len({abb[i] for i in idx}) < 2:
+        return {"usato": False, "motivo": "voci dell'indice abbinate troppo poche (%d)" % len(idx), "voci_indice": len(toc)}
+    lin = _linea_sotto(doc, T)
+    X = _caratteristiche_livello(T, S, lin)
+    y = np.zeros(len(T), dtype=int)
+    for i in idx:
+        y[i] = abb[i]
+    mk = lambda: HGB(max_iter=200, learning_rate=0.08, random_state=0)
+    acc = None
+    if len(idx) >= 100:  # qualita' fuori campione: 5 gruppi a rotazione sulle voci abbinate
+        arr, ok = np.array(idx), 0
+        for g in range(5):
+            te = arr[g::5]
+            tr = np.setdiff1d(arr, te)
+            ok += int((mk().fit(X[tr], y[tr]).predict(X[te]) == y[te]).sum())
+        acc = round(ok / len(arr), 3)
+    mod = mk().fit(X[idx], y[idx])
+    n_idx = n_mod = n_skip = n_diff = 0
+    distr = collections.Counter()
+    for i, b in enumerate(T):
+        p = prop[b["k"]]
+        if b["zona"] or p["proposta"] != "titolo":
+            n_skip += 1
+            continue
+        if i in abb:  # abbinato all'indice: vale il suo livello anche se nel PDF non c'e' testo leggibile (scritte grafiche)
+            nuovo, fonte = abb[i], "indice"
+            n_idx += 1
+        elif S[i]:
+            nuovo, fonte = int(mod.predict(X[[i]])[0]), "stile"
+            n_mod += 1
+        else:
+            n_skip += 1
+            continue
+        if p.get("livello_proposto") != nuovo:
+            n_diff += 1
+            p["livello_regola_vecchia"] = p.get("livello_proposto")
+        p["livello_proposto"], p["livello_fonte"] = nuovo, fonte
+        distr[nuovo] += 1
+    n_testatine = 0  # le testatine di pagina trasformate in titoli (voci sintetiche): se l'indice le conosce, vale il suo livello
+    for p in prop:
+        if p.get("sintetico") and p["proposta"] == "titolo":
+            nt = _norm_ix(p["testo"])
+            for lv, titolo, pgn in toc:
+                if pgn == p["pag"] and len(nt) >= 3 and difflib.SequenceMatcher(None, nt, _norm_ix(titolo)).ratio() >= 0.85:
+                    p["livello_regola_vecchia"] = p.get("livello_proposto")
+                    p["livello_proposto"], p["livello_fonte"] = lv, "indice"
+                    n_testatine += 1
+                    break
+    return {"usato": True, "voci_indice": len(toc), "abbinate": len(abb), "addestramento": len(idx), "accordo_fuori_campione": acc,
+            "testatine_dall_indice": n_testatine, "titoli_dall_indice": n_idx, "titoli_dallo_stile": n_mod, "non_toccati": n_skip, "livello_cambiato_rispetto_alla_regola_vecchia": n_diff,
+            "distribuzione_livelli": dict(sorted(distr.items()))}
+
+
+def titoli_ripetuti(prop):
+    """Un titolo di livello 1-2 che torna entro 6 pagine con lo stesso testo (senza maiuscole e punteggiatura) scende di un livello rispetto
+    al primo, se non e' gia' confermato dall'indice del PDF (scritta grafica o testatina): resta un titolo ma non e' piu' un capitolo.
+    Segue le decisioni umane (due libri: capitolo L1 e sezione omonima L2; L2 e L3). I titoli confermati dall'indice e le pagine
+    1-3 (copertina e frontespizio) non si toccano."""
+    T = [p for p in prop if p["proposta"] == "titolo" and p.get("idx") is not None or p.get("sintetico") and p["proposta"] == "titolo"]
+    n = 0
+    for i, p in enumerate(T):
+        if p.get("livello_fonte") == "indice" or (p.get("livello_proposto") or 9) > 2:
+            continue
+        k = _norm_ix(p["testo"])
+        if len(k) < 4:
+            continue
+        for q in T[:i]:
+            if q["pag"] <= 3 or p["pag"] - q["pag"] > 6 or (q.get("livello_proposto") or 9) > 2 or _norm_ix(q["testo"]) != k:
+                continue
+            if p["livello_proposto"] <= q["livello_proposto"]:
+                p["livello_regola_vecchia"] = p.get("livello_regola_vecchia", p["livello_proposto"])
+                p["livello_proposto"] = min(5, q["livello_proposto"] + 1)
+                p["livello_fonte"] = "ripetizione"
+                n += 1
+            break
+    return n
+
+
+def etichette_di_immagini(pag, prop, con_indice=False):
+    """Un titolo ben definito resta titolo; le etichette no. Si applica ai titoli NON confermati dall'indice del PDF:
+    - dentro la stessa immagine ci sono 2 o piu' titoli: sono etichette di quell'immagine (tue decisioni: 7 su 7 'immagine');
+    - nei libri con indice, una scritta dentro un'immagine che l'indice non conferma non e' un titolo ben definito (tue decisioni: 11 su 11;
+      quelle confermate dall'indice erano titoli 21 su 21);
+    - pagina senza testo corrente (< 150 caratteri) con 3 o piu' titoli: etichette di mappa o righe di tabella (tue decisioni: 34 su 34),
+      ma solo le etichette piccole: un titolo grande (livello 1 per grandezza) e' il titolo ben definito della pagina e resta.
+    Un titolo da solo nella sua immagine, o da solo su una pagina di mappa, resta titolo (tue decisioni: 26 su 37 e 20 su 29)."""
+    IMG = ("image", "header_image", "footer_image", "chart", "seal")
+    TESTO_ = ("text", "list", "aside_text", "vision_footnote")
+    info = {}
+    for n, d in pag.items():
+        L = d["parsing_res_list"]
+        imgs = [b["block_bbox"] for b in L if b["block_label"] in IMG and b.get("block_bbox")]
+        info[n] = {"imgs": imgs, "corpo": sum(len(b.get("block_content") or "") for b in L if b["block_label"] in TESTO_),
+                   "ntit": sum(1 for b in L if b["block_label"] in TIT)}
+    def immagine_di(n, bb):
+        area = (bb[2] - bb[0]) * (bb[3] - bb[1]) or 1
+        best = (0.0, None)
+        for k, q in enumerate(info[n]["imgs"]):
+            w, h = min(bb[2], q[2]) - max(bb[0], q[0]), min(bb[3], q[3]) - max(bb[1], q[1])
+            if w > 0 and h > 0 and w * h / area > best[0]:
+                best = (w * h / area, k)
+        return best[1] if best[0] >= 0.6 else None
+    per_img = collections.Counter()
+    for p in prop:
+        if p.get("idx") is not None and p["label"] in TIT and p.get("bbox"):
+            k = immagine_di(p["pag"], p["bbox"])
+            p["_img"] = (p["pag"], k) if k is not None else None
+            if k is not None:
+                per_img[p["_img"]] += 1
+    n_img = n_mappa = 0
+    for p in prop:
+        img = p.pop("_img", None)
+        if p["proposta"] != "titolo" or p.get("idx") is None or p.get("livello_fonte") == "indice":
+            continue
+        if img is not None and (per_img[img] >= 2 or con_indice):
+            p["proposta"], p["livello_proposto"] = "non_titolo", None
+            p["motivo"] = "etichetta dentro un'immagine (piu' titoli nella stessa immagine)" if per_img[img] >= 2 else "scritta dentro un'immagine non confermata dall'indice"
+            n_img += 1
+        elif info[p["pag"]]["corpo"] < 150 and info[p["pag"]]["ntit"] >= 3 and p.get("livello_proposto") != 1:  # i titoli grandi (livello 1 per grandezza) restano
+            p["proposta"], p["motivo"], p["livello_proposto"] = "non_titolo", "etichetta su pagina senza testo (mappa o tabella)", None
+            n_mappa += 1
+        if p["proposta"] == "non_titolo":
+            p.pop("livello_fonte", None)
+            p.pop("livello_regola_vecchia", None)
+    return {"in_immagini": n_img, "su_pagine_di_mappa": n_mappa}
+
+
+def nomi_delle_schede(doc, pag, prop):
+    """Il nome in cima a una scheda (mostro, PNG) e' l'intestazione della scheda, anche se sta dentro la zona 'scheda' (le altre voci
+    della scheda - Azioni, Reazioni... - restano non titoli). Livello: quello dell'indice del PDF per quel nome (pagina +-1, prima le voci
+    non 'Stat Block'; nomi uguali o uno l'inizio dell'altro, senza accenti); se l'indice non conferma il nome, niente intestazione
+    ("titolo ben definito, altrimenti niente"). Se lo stesso nome e' gia' un titolo vero entro 1 pagina non si duplica.
+    Solo zone con nome letto dal testo (fonte 'testo') e primo pezzo della scheda."""
+    toc = doc.get_toc()
+    ix = collections.defaultdict(list)
+    for lv, t, pg in toc:
+        k = _nome_ix(t)
+        if k:
+            ix[k].append((lv, pg, t.lower().lstrip().startswith("stat")))
+    gia = collections.defaultdict(list)
+    for p in prop:
+        if p["proposta"] == "titolo" and p.get("idx") is not None:
+            gia[_norm_ix(_senza_accenti((p["testo"] or "").split("\n")[0]))].append(p["pag"])
+    per_blocco = {(p["pag"], p["idx"]): p for p in prop if p.get("idx") is not None}
+    cand = []
+    for n in sorted(pag):
+        d = pag[n]
+        L = d["parsing_res_list"]
+        ordine = sorted(range(len(L)), key=lambda i: (L[i].get("block_order") if L[i].get("block_order") is not None else 10 ** 6 + i))
+        for z in d.get("dnb_zone") or []:
+            if z.get("label") != "scheda" or z.get("fonte") != "testo" or not z.get("nome") or z.get("pezzo") not in (1, None):
+                continue
+            k = _norm_ix(_senza_accenti(z["nome"]))
+            if len(k) < 3:
+                continue
+            blocco = None
+            for pos, i in enumerate(ordine):
+                b = L[i]
+                bb = b.get("block_bbox")
+                if not bb or b["block_label"] in ("image", "header_image", "footer_image"):
+                    continue
+                cx, cy = (bb[0] + bb[2]) / 2, (bb[1] + bb[3]) / 2
+                if not (z["bbox"][0] <= cx <= z["bbox"][2] and z["bbox"][1] <= cy <= z["bbox"][3]):
+                    continue
+                prima = _norm_ix(_senza_accenti((b.get("block_content") or "").strip().split("\n")[0]))
+                if prima == k or prima.startswith(k):
+                    blocco = (i, pos)
+                    break
+            if blocco is None:
+                continue
+            c = [x for x in ix.get(k, []) if abs(x[1] - n) <= 1]
+            if not c and len(k) >= 8:  # nome della scheda troncato dall'OCR ("Quaggoth servitore delle"): e' l'inizio del nome nell'indice
+                c = [x for kk, voci in ix.items() if kk.startswith(k) for x in voci if abs(x[1] - n) <= 1]
+            c.sort(key=lambda x: (x[2], abs(x[1] - n), x[0]))
+            cand.append({"pag": n, "k": k, "blocco": blocco, "livello": c[0][0] if c else None})
+    st_ = collections.Counter()
+    for c in cand:
+        if any(abs(pg - c["pag"]) <= 1 for pg in gia.get(c["k"], [])):
+            st_["gia_titolo_vicino"] += 1
+            continue
+        liv, fonte = c["livello"], "indice_scheda"
+        if liv is None:  # l'indice non conferma il nome: niente intestazione
+            st_["non_nell_indice"] += 1
+            continue
+        i, pos = c["blocco"]
+        n = c["pag"]
+        d = pag[n]
+        b = d["parsing_res_list"][i]
+        p = per_blocco.get((n, i))
+        if p is None:
+            bb = b["block_bbox"]
+            p = {"pag": n, "pos": pos, "idx": i, "label": b["block_label"], "testo": (b.get("block_content") or "").strip(), "bbox": bb,
+                 "altezza_mille": round((bb[3] - bb[1]) * 1000 / d["height"], 1), "proposta": "titolo", "motivo": "", "livello_proposto": None,
+                 "prima": None, "dopo": None, "in_box": None}
+            prop.append(p)
+            per_blocco[(n, i)] = p
+            st_["blocco_nuovo"] += 1
+        p["proposta"], p["motivo"], p["livello_proposto"], p["livello_fonte"] = "titolo", "nome della scheda", liv, fonte
+        p.pop("livello_regola_vecchia", None)
+        st_[fonte] += 1
+    return {"schede": len(cand), **dict(st_)}
+
+
 def main(progetto: str, cartella_output: str = "", resume_url: str = ""):
     pag = leggi_pagine(progetto)
     if not pag:
@@ -488,6 +927,26 @@ def main(progetto: str, cartella_output: str = "", resume_url: str = ""):
                 t["in_box"] = {"pag": b["pag"], "rect": R, "voci": b["voci"]}
                 n_in += 1
                 break
+    try:  # titoli dentro le schede: non sono titoli (solo PDF con testo nativo)
+        schede_info = titoli_in_schede(doc, pag, prop)
+    except Exception as e:
+        schede_info = {"usato": False, "errore": str(e)[:200]}
+    try:  # livello dei titoli dall'indice del PDF (se c'e'); mai un motivo per bloccare la preparazione
+        liv_info = livelli_da_indice(doc, pag, prop)
+    except Exception as e:
+        liv_info = {"usato": False, "errore": str(e)[:200]}
+    try:  # ripetizioni di titoli gia' confermati dall'indice
+        rip_info = titoli_ripetuti(prop)
+    except Exception as e:
+        rip_info = {"errore": str(e)[:200]}
+    try:  # etichette dentro le immagini o su pagine di mappa (dopo l'indice: un titolo confermato dall'indice resta)
+        img_info = etichette_di_immagini(pag, prop, con_indice=bool(liv_info.get("usato")))
+    except Exception as e:
+        img_info = {"errore": str(e)[:200]}
+    try:  # il nome in cima alle schede e' l'intestazione della scheda (dopo le altre regole, che non devono disfarlo)
+        nomi_info = nomi_delle_schede(doc, pag, prop)
+    except Exception as e:
+        nomi_info = {"errore": str(e)[:200]}
     # i box candidati diventano voci della revisione (label "box"), subito prima del loro primo blocco: l'umano decide "e' un box" / "non lo e'"
     for b in box:
         L = pag[b["pag"]]["parsing_res_list"]
@@ -509,4 +968,9 @@ def main(progetto: str, cartella_output: str = "", resume_url: str = ""):
     json.dump({"stato": "in_revisione", "resume_url": resume_url or None}, open(d + "/stato.json", "w"))
     return {"cartella": d, "pagine": len(pag), "titoli": len(prop), "per_classe": dict(collections.Counter(t["proposta"] for t in prop)), "candidati_box": len(box),
             "box": len(box), "titoli_in_box": n_in,
+            "livelli_da_indice": liv_info,
+            "titoli_in_schede": schede_info,
+            "etichette_immagini": img_info,
+            "nomi_schede": nomi_info,
+            "titoli_ripetuti": rip_info,
             "sezioni_da_intestazione": {"inizi": n_inizi, "ripetizioni": n_rip, "sintetiche": len(sint)}}
